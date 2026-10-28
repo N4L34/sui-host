@@ -28,11 +28,11 @@ services:
     volumes:
       - ./runtime.env:/app/.env:ro
       - /home/sui/commands/state:/app/deploy/rendered
-      - /home/sui/tailnet-messenger/secrets/telegram_bot_token:/app/secrets/telegram_bot_token:ro
-      - /home/sui/tailnet-messenger/secrets/telegram_chat_id:/app/secrets/telegram_chat_id:ro
-      - /home/sui/tailnet-messenger/secrets/registration_shared_secret:/app/secrets/registration_shared_secret:ro
-      - /home/sui/tailnet-messenger/secrets/svoibot_password:/app/secrets/svoibot_password:ro
-      - /home/sui/tailnet-messenger/secrets/svoibot_access_token:/app/secrets/svoibot_access_token
+      - /home/sui/sui-host/chat/secrets/telegram_bot_token:/app/secrets/telegram_bot_token:ro
+      - /home/sui/sui-host/chat/secrets/telegram_chat_id:/app/secrets/telegram_chat_id:ro
+      - /home/sui/sui-host/chat/secrets/registration_shared_secret:/app/secrets/registration_shared_secret:ro
+      - /home/sui/sui-host/chat/secrets/svoibot_password:/app/secrets/svoibot_password:ro
+      - /home/sui/sui-host/chat/secrets/svoibot_access_token:/app/secrets/svoibot_access_token
     networks:
       - monitoring
     memswap_limit: 128M

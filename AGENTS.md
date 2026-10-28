@@ -2,7 +2,7 @@
 
 Этот файл читают первым. Он решает, как поднять процесс. Карта узла: `docs/architecture.md`. Каркас и пример Compose: `docs/new-service.md`. Команды на живом узле: `docs/work.md`. Состав: `docs/services.md`. Проверки и выкладка: `docs/standard.md`.
 
-Узел `sui.example.com`. Один клон `/home/sui/sui-host`. Сервисы лежат папками `monitoring`, `chat`, `commands`, `avtobot`, у каждой свой Compose и свой юнит. Живой чат пока запускается из `/home/sui/tailnet-messenger`: его папка в репозитории есть, выкладка его не поднимает. Службы идут от пользователя `sui`. Секреты, пароли, токены и пароль `sudo` в git, в ответ и в память не попадают.
+Узел `sui.example.com`. Один клон `/home/sui/sui-host`. Сервисы лежат папками `monitoring`, `chat`, `commands`, `avtobot`, у каждой свой Compose и свой юнит. Живой чат запускается из `/home/sui/sui-host/chat`. Службы идут от пользователя `sui`. Секреты, пароли, токены и пароль `sudo` в git, в ответ и в память не попадают.
 
 ## Закон
 

@@ -4,6 +4,8 @@ name: svoi
 services:
   postgres:
     image: ${POSTGRES_IMAGE}
+    pull_policy: missing
+    init: true
     environment:
       TZ: ${TZ}
       POSTGRES_USER: synapse
@@ -34,10 +36,12 @@ services:
       resources:
         limits:
           memory: 512M
+    memswap_limit: 512M
 
   # The image drops to uid 991 and does not chown /data in run mode.
   synapse-data-init:
     image: ${ALPINE_IMAGE}
+    pull_policy: missing
     user: "0:0"
     network_mode: none
     volumes:
@@ -47,6 +51,8 @@ services:
 
   synapse:
     image: ${SYNAPSE_IMAGE}
+    pull_policy: missing
+    init: true
     depends_on:
       postgres:
         condition: service_healthy
@@ -82,9 +88,13 @@ services:
       resources:
         limits:
           memory: 1536M
+    memswap_limit: 1536M
 
   element-web:
     image: ${ELEMENT_WEB_IMAGE}
+    pull_policy: missing
+    user: nginx
+    init: true
     environment:
       TZ: ${TZ}
     volumes:
@@ -101,6 +111,7 @@ services:
       resources:
         limits:
           memory: 128M
+    memswap_limit: 128M
 
 networks:
   edge:

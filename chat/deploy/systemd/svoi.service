@@ -7,13 +7,13 @@ Wants=tailscaled.service
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-WorkingDirectory=/opt/tailnet-messenger
-# The host unit uses /home/sui/tailnet-messenger. Observe must come back
-# on boot, not only the chat profile.
-Environment=SVOI_OBSERVE=true
-ExecStart=/usr/bin/make up
+User=sui
+Group=sui
+SupplementaryGroups=docker
+WorkingDirectory=/home/sui/sui-host/chat
+ExecStart=/bin/bash -c 'set -euo pipefail; export TAILSCALE_IPV4="$(tr -d "[:space:]" < secrets/tailscale_ipv4)"; exec docker compose --env-file .env -f deploy/compose.yml -f deploy/compose.calls.yml -f deploy/rendered/compose.dial.yml -f deploy/compose.platform-net.yml up -d'
 ExecStartPost=/usr/bin/make serve
-ExecStop=/usr/bin/make down
+ExecStop=/bin/bash -c 'set -euo pipefail; export TAILSCALE_IPV4="$(tr -d "[:space:]" < secrets/tailscale_ipv4)"; exec docker compose --env-file .env -f deploy/compose.yml -f deploy/compose.calls.yml -f deploy/rendered/compose.dial.yml -f deploy/compose.platform-net.yml stop'
 TimeoutStartSec=300
 
 [Install]

@@ -143,6 +143,6 @@ docker compose up --no-deps -d billing
 
 ## Чат
 
-Чат лежит в `/home/sui/tailnet-messenger`. Проект Compose называется `chat`: это задаёт `deploy/compose.platform-net.yml`, и `make` подключает файл, если он лежит на месте. Служба systemd по-прежнему `svoi.service`. Во время звонка `make up` не запускают: он вызывает `render_config.py` и пересоздаёт LiveKit.
+Чат лежит в `/home/sui/sui-host/chat`. Проект Compose называется `chat`: это задаёт `deploy/compose.platform-net.yml`. Служба systemd называется `svoi.service`. `make up` на узле не запускают: он вызывает `render_config.py` и пересоздаёт LiveKit. Во время звонка чат не пересоздают.
 
 `SVOI_OBSERVE` у `svoi.service` равен `false`. Иначе следующий запуск чата поднимет второй Grafana и второй Prometheus на тех же портах.

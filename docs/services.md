@@ -1,6 +1,6 @@
 # Сервисы
 
-Состав узла на 28 октября 2026. Образы мониторинга закреплены в `monitoring/.env.example`. Код чата лежит в папке `chat`. Живой процесс чата пока остаётся в `/home/sui/tailnet-messenger` и общей выкладкой не поднимается. Этот файл — инвентарь, а не второй источник тегов.
+Состав узла на 28 октября 2026. Образы мониторинга закреплены в `monitoring/.env.example`. Код и живой процесс каждого сервиса лежат в `/home/sui/sui-host/<имя>`. Этот файл — инвентарь, а не второй источник тегов.
 
 Долгий проект — контейнер своего Compose. У каждого Compose свой срез мониторинга: метка `project` на проверках и фильтр на дашборде `Свои`. Чат — `chat`, платформа — `monitoring`, команды — `commands`, номера — `avtobot`. Короткое задание, которое завершается, остаётся таймером: discover, резервная копия, утренняя сводка, проверка края. Долгий процесс запускает только юнит его проекта. Юнит вызывает `docker compose up -d` и останавливает `docker compose stop`. Скрипт, интерпретатор и `docker run` этот процесс не запускают.
 
@@ -10,24 +10,24 @@
 | --- | --- |
 | `docker.service` | контейнеры, включена при загрузке |
 | `tailscaled.service` | адрес `100.64.0.10` и Serve |
-| `svoi.service` | Compose чата из `/home/sui/tailnet-messenger`, без стека наблюдения. Остановка вызывает `make down` |
+| `svoi.service` | Compose чата из `/home/sui/sui-host/chat`, без стека наблюдения. Остановка вызывает `docker compose stop` |
 | `monitoring.service` | метрики, журнал и алерты из `/home/sui/sui-host/monitoring` |
 | `monitoring-discover.timer` | раз в 15 секунд обновляет цели Prometheus по меткам и завершается |
 | `svoi-backup.timer` | резервная копия чата раз в час и завершается |
 | `svoi-edge-probe.timer` | раз в минуту проверяет чат и звонки через Tailscale и завершается |
-| `commands.service` | Compose `commands` из `/home/sui/commands`. В `ExecStart` только `docker compose up -d` |
-| `avtobot.service` | Compose `avtobot` из `/home/sui/avtobot`. В `ExecStart` только `docker compose up -d` |
+| `commands.service` | Compose `commands` из `/home/sui/sui-host/commands`. В `ExecStart` только `docker compose up -d` |
+| `avtobot.service` | Compose `avtobot` из `/home/sui/sui-host/avtobot`. В `ExecStart` только `docker compose up -d` |
 | `svoi-telegram-morning.timer` | сводка в 05:00 UTC, 08:00 Europe/Moscow, и завершается |
 | `svoi-telegram-week.timer` | сводка в воскресенье 08:00 UTC, 11:00 Europe/Moscow, и завершается |
 | `sui-dark-mode.service` | гасит панель устройства |
 
-`svoi.service` смотрит в `/home/sui/tailnet-messenger`. Файл в репозитории чата всё ещё указывает `WorkingDirectory=/opt/tailnet-messenger`. Поверх `/etc/systemd/system/svoi.service` его не копируют.
+`svoi.service` совпадает с `chat/deploy/systemd/svoi.service` и смотрит в `/home/sui/sui-host/chat`. `ExecStart` не вызывает `make up`. Drop-in `observe.conf` держит `SVOI_OBSERVE=false`.
 
 Календари systemd на этом узле считаются в UTC. Поле `Timezone=` не действует.
 
 ## Чат
 
-Проект Compose `chat`. Код в папке `chat` этого репозитория. Живой каталог пока `/home/sui/tailnet-messenger`. Имя проекта задаёт префикс контейнеров. Служба `svoi.service` называется по-старому и этой выкладкой не перезапускается.
+Проект Compose `chat`. Код и процесс в `/home/sui/sui-host/chat`. Имя проекта задаёт префикс контейнеров. Служба называется `svoi.service`. `systemctl restart` и `systemctl stop` её не вызывают: оба останавливают контейнеры чата.
 
 | Контейнер | Образ | Публикация |
 | --- | --- | --- |
@@ -47,7 +47,7 @@
 
 LiveKit оставляют на `v1.13.10`. Образ `v1.9.0` не обслуживал `/rtc/v1`, и звонок обрывался примерно через 15 секунд. На текущем образе `/rtc/v1` отвечает 404, а `/rtc/v1/validate` без токена отвечает 401. Для `v1.13.10` это штатный ответ. `use_ice_lite: true` во время тех обрывов уже был включён, его не снимают.
 
-Сервис токенов пока отдельный контейнер, не приложение Synapse. Запрос Element X `delegate_delayed_leave` на homeserver отвечает 404, и при обрыве связи сервер звонок сам не закрывает. В рабочей копии `tailnet-messenger` это размечено и на узел не выкатывалось.
+Сервис токенов пока отдельный контейнер, не приложение Synapse. Запрос Element X `delegate_delayed_leave` на homeserver отвечает 404, и при обрыве связи сервер звонок сам не закрывает. В этом клоне регистрация приложения на homeserver не включена.
 
 Регистрация закрыта. Учётные записи создаёт оператор или бот команд. Локальные части `operator` и `svoibot` не удаляют и не сбрасывают. Пароли в этот репозиторий не входят.
 

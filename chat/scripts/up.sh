@@ -3,6 +3,7 @@ source "$(dirname "$0")/lib.sh"
 need_cmd docker python3
 load_env
 python3 "$ROOT/scripts/render_config.py"
+ensure_telegram_token
 if [[ "${ENABLE_CALLS:-false}" == "true" ]]; then
   ensure_call_dial
 fi

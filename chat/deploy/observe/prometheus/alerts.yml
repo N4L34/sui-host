@@ -7,16 +7,8 @@ groups:
         labels:
           severity: page
         annotations:
-          summary: "Homeserver probe {{ $labels.instance }} is failing"
-          description: "Blackbox has seen failures for 2 minutes. Open docs/runbooks/homeserver-down.md."
-
-      - alert: SynapseMetricsDown
-        expr: up{job="synapse"} == 0
-        for: 2m
-        labels:
-          severity: page
-        annotations:
-          summary: "Synapse metrics endpoint is down"
+          summary: "Чат не отвечает уже больше 2 минут."
+          resolved: "Чат снова отвечает."
 
       - alert: DiskSpaceLow
         expr: |
@@ -30,7 +22,8 @@ groups:
         labels:
           severity: page
         annotations:
-          summary: "Filesystem {{ $labels.mountpoint }} has under 15% free"
+          summary: "Мало места на диске: свободно меньше 15%."
+          resolved: "Места на диске снова достаточно."
           description: "Open docs/runbooks/disk-full.md."
 
       - alert: BackupStale
@@ -39,7 +32,8 @@ groups:
         labels:
           severity: page
         annotations:
-          summary: "Last successful backup is older than 26 hours"
+          summary: "Локальная копия старше 26 часов."
+          resolved: "Локальная копия снова свежая."
 
       - alert: OffsiteBackupStale
         expr: (time() - messenger_last_offsite_backup_success_timestamp) > 26 * 3600
@@ -47,5 +41,42 @@ groups:
         labels:
           severity: page
         annotations:
-          summary: "Last restic backup is older than 26 hours"
+          summary: "Копия наружу старше 26 часов."
+          resolved: "Копия наружу снова свежая."
           description: "This alert exists only after the first successful offsite backup."
+
+      - alert: OomKill
+        expr: increase(node_vmstat_oom_kill[15m]) > 0
+        for: 2m
+        labels:
+          severity: page
+        annotations:
+          summary: "Ядро убило процесс по памяти."
+          resolved: "Новых аварийных остановок по памяти нет."
+
+      - alert: MatrixPrefixDown
+        expr: messenger_matrix_prefix_ok == 0
+        for: 2m
+        labels:
+          severity: page
+        annotations:
+          summary: "С телефона чат открывается не на Matrix."
+          resolved: "Адрес чата снова открывает Matrix."
+
+      - alert: CallsNotReady
+        expr: messenger_calls_ready == 0
+        for: 5m
+        labels:
+          severity: page
+        annotations:
+          summary: "Звонки включены, но к ним не подключиться."
+          resolved: "Звонки снова доступны."
+
+      - alert: EdgeProbeStale
+        expr: (time() - messenger_edge_probe_timestamp) > 300
+        for: 5m
+        labels:
+          severity: page
+        annotations:
+          summary: "Проверка адреса чата остановилась."
+          resolved: "Проверка адреса чата снова идёт."

@@ -1,5 +1,5 @@
 # Host-only override. Installed as
-# /home/sui/tailnet-messenger/deploy/compose.platform-net.yml
+# /home/sui/sui-host/chat/deploy/compose.platform-net.yml
 # scripts/lib.sh appends this file, so its top-level name wins.
 # Volumes keep their existing names: those directories hold the database
 # and the Matrix signing key.

@@ -1,7 +1,5 @@
 # Свои
 
-Живой чат стоит на приставке `sui`, каталог `/home/sui/tailnet-messenger`, имя сервера `sui.example.com`. Шаблон в git и эта машина расходятся. Полная памятка для нейронки и нового разработчика: `docs/spec/AGENT.md`.
+Чат — папка `chat` единственного клона приставки `/home/sui/sui-host`. Имя сервера `sui.example.com`. Общий закон узла: `../AGENTS.md`. Памятка по чату: `docs/spec/AGENT.md`.
 
-Новый контейнер добавляют сервисом проекта `svoi` с теми же правилами, что у остальных: loopback, предел памяти, журнал json-file, `no-new-privileges`. Память, CPU и логи подхватывают cAdvisor и Alloy. HTTP-проверку дописывают в `blackbox-apps`. Ночной алерт заводят только если без сервиса другу ломается чат или звонок.
-
-Пока эта памятка не прочитана, на сервере не выполняют `systemctl restart svoi.service`, `make down`, `docker compose down`, пересоздание `svoi-livekit-1` и полный `scripts/render_config.py`. Секреты в ответы, git и память не копируют.
+`systemctl restart svoi.service` и `systemctl stop svoi.service` останавливают контейнеры чата. `make up` запускает `render_config.py` и на узле его не выполняют. `docker compose down` не вызывают. Секреты в ответы, git и память не копируют.

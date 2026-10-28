@@ -1,0 +1,10 @@
+[Unit]
+Description=Svoi weekly note on Sunday at 11:00 Moscow
+
+[Timer]
+# The host clock is UTC. 08:00 UTC on Sunday is 11:00 in Moscow.
+OnCalendar=Sun *-*-* 08:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

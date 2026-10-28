@@ -39,6 +39,9 @@ compose() {
   if [[ "${SVOI_OBSERVE:-false}" == "true" ]]; then
     files+=(-f deploy/compose.observe.yml)
   fi
+  if [[ -f deploy/compose.platform-net.yml ]]; then
+    files+=(-f deploy/compose.platform-net.yml)
+  fi
   docker compose --env-file .env "${files[@]}" "$@"
 }
 
@@ -50,6 +53,21 @@ postgres_exec() {
   compose exec -T postgres \
     sh -c 'export PGPASSWORD="$(tr -d "[:space:]" < /run/secrets/postgres_password)"; exec "$@"' \
     sh "$@"
+}
+
+# Alertmanager runs as nobody. The real token stays mode 0600 in secrets/.
+# This copy is only the file the container can read. Missing token still
+# leaves a file, so compose does not turn the mount into a directory.
+ensure_telegram_token() {
+  local dest="$ROOT/deploy/observe/alertmanager/bot_token"
+  local src="$ROOT/secrets/telegram_bot_token"
+  mkdir -p "${dest%/*}"
+  if [[ -s "$src" ]]; then
+    install -m 644 "$src" "$dest"
+  elif [[ ! -s "$dest" ]]; then
+    printf '\n' > "$dest"
+    chmod 644 "$dest"
+  fi
 }
 
 # LiveKit publishes media on the Tailscale address. If that address was not
@@ -66,15 +84,27 @@ ensure_livekit_published() {
     export TAILSCALE_IPV4
   fi
   load_tailscale_ip
-  nets="$(docker inspect --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}' svoi-livekit-1 2>/dev/null || true)"
-  ports="$(docker inspect --format '{{json .NetworkSettings.Ports}}' svoi-livekit-1 2>/dev/null || true)"
+  livekit_name=""
+  for candidate in chat-livekit-1 svoi-livekit-1; do
+    if docker inspect "$candidate" >/dev/null 2>&1; then
+      livekit_name="$candidate"
+      break
+    fi
+  done
+  nets="$(docker inspect --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}' "$livekit_name" 2>/dev/null || true)"
+  ports="$(docker inspect --format '{{json .NetworkSettings.Ports}}' "$livekit_name" 2>/dev/null || true)"
   if [[ -n "${TAILSCALE_IPV4:-}" && "$nets" == *edge* && "$ports" == *"7880/tcp"* && "$ports" == *"${TAILSCALE_IPV4}"* ]]; then
     return 0
   fi
   echo "livekit is up without its tailnet ports; recreating" >&2
   compose up -d --no-deps --force-recreate livekit
   # Caddy keeps the failed dial to the previous address.
-  docker restart svoi-calls-proxy-1 >/dev/null 2>&1 || true
+  for candidate in chat-calls-proxy-1 svoi-calls-proxy-1; do
+    if docker inspect "$candidate" >/dev/null 2>&1; then
+      docker restart "$candidate" >/dev/null 2>&1 || true
+      break
+    fi
+  done
 }
 
 # Stops core, calls, and observe even when the later command did not set the flags.

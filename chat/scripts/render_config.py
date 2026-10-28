@@ -143,6 +143,18 @@ enable_metrics: true
 report_stats: false
 allow_guest_access: false
 use_presence: false
+# A short burst so a few mistyped passwords on one phone do not lock the address.
+# After the burst the pace stays at the Synapse default.
+rc_login:
+  address:
+    per_second: 0.17
+    burst_count: 10
+  account:
+    per_second: 0.17
+    burst_count: 10
+  failed_attempts:
+    per_second: 0.17
+    burst_count: 8
 require_auth_for_profile_requests: true
 allow_public_rooms_without_auth: false
 allow_public_rooms_over_federation: false
@@ -275,28 +287,72 @@ def caddyfile_dial() -> str:
 """
 
 
+def telegram_chat_id() -> str:
+    path = ROOT / "secrets" / "telegram_chat_id"
+    if not path.is_file():
+        return ""
+    chat = path.read_text(encoding="utf-8").strip()
+    if not re.fullmatch(r"-?\d{1,20}", chat):
+        sys.exit("secrets/telegram_chat_id must be an integer chat id")
+    return chat
+
+
+def telegram_token_ready() -> bool:
+    path = ROOT / "secrets" / "telegram_bot_token"
+    if not path.is_file():
+        return False
+    token = path.read_text(encoding="utf-8").strip()
+    return re.fullmatch(r"\d+:[A-Za-z0-9_-]{20,}", token) is not None
+
+
 def alertmanager(env: dict[str, str]) -> str:
     webhook = env.get("ALERT_WEBHOOK_URL", "").strip()
+    chat = telegram_chat_id()
+    use_telegram = telegram_token_ready() and bool(chat)
+    if telegram_token_ready() and not chat:
+        print(
+            "warning: secrets/telegram_bot_token is set but secrets/telegram_chat_id is missing",
+            file=sys.stderr,
+        )
+    lines = [
+        "# Generated.",
+        "route:",
+        "  receiver: default",
+        "  group_by: [alertname]",
+        "  group_wait: 30s",
+        "  group_interval: 5m",
+        "  repeat_interval: 4h",
+        "",
+    ]
+    if use_telegram:
+        lines.extend(
+            [
+                "templates:",
+                "  - /etc/alertmanager/telegram.tmpl",
+                "",
+            ]
+        )
+    lines.extend(["receivers:", "  - name: default"])
+    if use_telegram:
+        lines.extend(
+            [
+                "    telegram_configs:",
+                "      - bot_token_file: /etc/alertmanager/telegram_token",
+                f"        chat_id: {chat}",
+                "        parse_mode: HTML",
+                "        send_resolved: true",
+                '        message: \'{{ template "svoi.telegram" . }}\'',
+            ]
+        )
     if webhook:
-        receiver = f"""receivers:
-  - name: default
-    webhook_configs:
-      - url: {dq(webhook)}
-        send_resolved: true
-"""
-    else:
-        receiver = """receivers:
-  - name: default
-"""
-    return f"""# Generated.
-route:
-  receiver: default
-  group_by: [alertname]
-  group_wait: 30s
-  group_interval: 5m
-  repeat_interval: 4h
-
-{receiver}"""
+        lines.extend(
+            [
+                "    webhook_configs:",
+                f"      - url: {dq(webhook)}",
+                "        send_resolved: true",
+            ]
+        )
+    return "\n".join(lines) + "\n"
 
 
 def guard_server_name(server: str) -> None:

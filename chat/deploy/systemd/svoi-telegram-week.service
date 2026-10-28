@@ -1,0 +1,11 @@
+[Unit]
+Description=Svoi weekly note
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=sui
+Group=sui
+SupplementaryGroups=docker
+WorkingDirectory=/home/sui/sui-host/chat
+ExecStart=/usr/bin/python3 /home/sui/sui-host/chat/scripts/telegram_notify.py weekly

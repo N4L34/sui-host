@@ -28,7 +28,7 @@ Tailscale Serve на sui
 
 1. Хост. Docker, Tailscale, systemd. Каталог `/home/sui`.
 2. Мониторинг. Проект Compose `monitoring` в `/home/sui/sui-host/monitoring`: Prometheus, Grafana, Loki, Alloy, Alertmanager, cAdvisor, node-exporter, blackbox-exporter, postgres-exporter. Общая сеть Docker называется `monitoring`. Её создаёт `monitoring.service`.
-3. Проекты. У каждого своя папка в `/home/sui/sui-host` и свой Compose. Чат — проект `chat`: Synapse, Postgres, Element, звонки. Код в папке `chat`, живой процесс пока из `/home/sui/tailnet-messenger`. Он подключён к сети `monitoring` на тех же условиях, что и любой другой сервис. Служба systemd чата по-прежнему называется `svoi.service`.
+3. Проекты. У каждого своя папка в `/home/sui/sui-host` и свой Compose. Чат — проект `chat`: Synapse, Postgres, Element, звонки. Код и процесс в папке `chat`. Он подключён к сети `monitoring` на тех же условиях, что и любой другой сервис. Служба systemd чата называется `svoi.service`.
 
 Чат, мониторинг и остальные проекты не делят базу. Общие для них машина, Tailscale и выход к Telegram через адрес `149.154.167.220`: имя `api.telegram.org` с узла не резолвится.
 

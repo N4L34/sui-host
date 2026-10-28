@@ -82,7 +82,7 @@ ACL для консоли Tailscale лежит в [`deploy/tailscale/acl.hujson`
 | `make backup` | снимок базы, ключа подписи и медиа в `backups/` |
 | `make drill` | поднять дамп во временном Postgres и посчитать `users` |
 | `make user USER=bob` | учётка |
-| `make observe` | Prometheus, Loki, Grafana на `https://<имя>/` |
+| `make observe` | Prometheus, Loki, Grafana на `:3443` |
 | `make down` | остановить, тома не удаляются |
 
 Таймер `deploy/systemd/svoi-backup.timer` запускает бэкап раз в час. Каталог `backups/` копируйте вместе с остальными бэкапами этого сервера.
@@ -94,7 +94,6 @@ ACL для консоли Tailscale лежит в [`deploy/tailscale/acl.hujson`
 Полные требования, критерии приёмки и отказы от альтернатив:
 
 - [Спецификация](docs/spec/SPEC.md)
-- [Памятка для нейронки и нового разработчика](docs/spec/AGENT.md)
 - [ADR](docs/adr)
 - [SLO](docs/sre/slo.md)
 - [Наблюдаемость](docs/sre/observability.md)

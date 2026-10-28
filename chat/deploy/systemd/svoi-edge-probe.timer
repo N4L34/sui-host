@@ -1,0 +1,10 @@
+[Unit]
+Description=Check the Svoi public path every minute
+
+[Timer]
+OnCalendar=minutely
+AccuracySec=10s
+Persistent=true
+
+[Install]
+WantedBy=timers.target

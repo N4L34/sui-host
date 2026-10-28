@@ -1,0 +1,93 @@
+# Host-only override. Installed as
+# /home/sui/sui-host/chat/deploy/compose.platform-net.yml
+# scripts/lib.sh appends this file, so its top-level name wins.
+# Volumes keep their existing names: those directories hold the database
+# and the Matrix signing key.
+name: chat
+
+services:
+  synapse:
+    networks:
+      edge:
+      data:
+      monitoring:
+        aliases: [synapse]
+    labels:
+      monitoring.project: chat
+      monitoring.service: synapse
+      monitoring.dns: synapse
+      monitoring.probe: "http://synapse:8008/health,http://synapse:8008/_matrix/client/versions"
+      monitoring.metrics.port: "9090"
+      monitoring.metrics.path: /_synapse/metrics
+      monitoring.alert: page
+      monitoring.name: Чат
+      monitoring.summary: "Чат не отвечает уже больше 2 минут."
+      monitoring.resolved: "Чат снова отвечает."
+
+  element-web:
+    networks:
+      edge:
+      monitoring:
+        aliases: [element-web]
+    labels:
+      monitoring.project: chat
+      monitoring.service: element-web
+      monitoring.dns: element-web
+      monitoring.probe: http://element-web:80/
+      monitoring.name: Element
+
+  livekit:
+    networks:
+      edge:
+      monitoring:
+        aliases: [livekit]
+    labels:
+      monitoring.project: chat
+      monitoring.service: livekit
+      monitoring.dns: livekit
+      monitoring.probe: http://livekit:7880/
+      monitoring.metrics.port: "6789"
+      monitoring.metrics.path: /metrics
+      monitoring.name: Звонки
+
+  lk-jwt:
+    networks:
+      edge:
+      monitoring:
+        aliases: [lk-jwt]
+    labels:
+      monitoring.project: chat
+      monitoring.service: lk-jwt
+      monitoring.dns: lk-jwt
+      monitoring.probe: http://lk-jwt:8080/healthz
+      monitoring.name: Токены звонка
+
+  calls-proxy:
+    networks:
+      edge:
+      monitoring:
+        aliases: [calls-proxy]
+    labels:
+      monitoring.project: chat
+      monitoring.service: calls-proxy
+      monitoring.dns: calls-proxy
+      monitoring.probe: http://calls-proxy:80/
+      monitoring.name: Прокси звонков
+
+networks:
+  edge:
+    name: chat_edge
+  data:
+    name: chat_data
+    internal: true
+  monitoring:
+    external: true
+    name: monitoring
+
+volumes:
+  postgres-data:
+    external: true
+    name: svoi_postgres-data
+  synapse-data:
+    external: true
+    name: svoi_synapse-data

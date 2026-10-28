@@ -43,17 +43,17 @@ docker compose up --no-deps -d <сервис>
 
 `docker compose down` в папках сервисов не вызывают: команда удаляет контейнеры. Флаг `--remove-orphans` не ставят.
 
-`/home/sui/commands` и `/home/sui/avtobot` поднимают той же командой. Из этих каталогов не запускают `python3`, `bot.py`, `selftest.py` и проверку, которая создаёт пользователя. Второй процесс на тот же токен не держат.
+Команды и номера поднимают из `/home/sui/sui-host/commands` и `/home/sui/sui-host/avtobot`. Из этих каталогов не запускают `python3`, `bot.py`, `selftest.py` и проверку, которая создаёт пользователя. Второй процесс на тот же токен не держат. Состояние команд остаётся в `/home/sui/commands/state`, состояние номеров в `/home/sui/avtobot`.
 
-`git push` сам файлы на узел не выкладывает. На узел уходят названные файлы через `rsync` по SSH. CI репозитория чата проверяет сборку и на узел не деплоит.
+`git push` сам файлы на узел не выкладывает. На узел уходят названные файлы через `rsync` по SSH. CI репозитория проверяет сборку и на узел не заходит.
 
 ## Чат и мониторинг
 
-`systemctl restart svoi.service` и `systemctl stop svoi.service` останавливают чат: `ExecStop` вызывает `make down`. Один контейнер чата перезапускают через `docker compose` из `/home/sui/tailnet-messenger`, тем же набором файлов, что у `make`. Проект Compose чата называется `chat`.
+`systemctl restart svoi.service` и `systemctl stop svoi.service` останавливают контейнеры чата. Один контейнер перезапускают через `docker compose` из `/home/sui/sui-host/chat`, тем же набором файлов, что у `svoi.service`. Проект Compose чата называется `chat`.
 
 `make up` в каталоге чата вызывает `render_config.py` и пересоздаёт LiveKit. Во время звонка его не запускают. Полный `scripts/render_config.py` переписывает homeserver, Element, LiveKit и Caddy. На узле так не делают. Правят уже сгенерированный файл и перезапускают только контейнер, который его читает.
 
-Мониторинг поднимает `monitoring.service` из `/home/sui/sui-host/monitoring`. Команды и номера поднимают свои юниты из своих папок. Остановка: `docker compose stop` в папке сервиса. У чата `SVOI_OBSERVE=false`. Иначе следующий запуск `svoi.service` поднимет второй Grafana. Флаг меняют в drop-in и ради этого `svoi.service` не перезапускают. Живой чат остаётся в `/home/sui/tailnet-messenger`.
+Мониторинг, команды, номера и чат поднимаются из своих папок в `/home/sui/sui-host`. Остановка: `docker compose stop` в папке сервиса. У чата `SVOI_OBSERVE=false`. Иначе следующий запуск `svoi.service` поднимет второй Grafana. Флаг меняют в drop-in и ради этого `svoi.service` не перезапускают.
 
 Пересоздание `chat-livekit-1` рвёт текущий звонок. `rsync` поверх файла, который уже примонтирован в контейнер, оставляет процесс на старом inode. Такой контейнер пересоздают точечно. LiveKit при активном звонке не трогают.
 
@@ -80,6 +80,6 @@ curl -fsS -o /dev/null -w 'matrix %{http_code}\n' https://sui.example.com/_matri
 
 В git не попадают `.env`, каталоги `secrets/`, `deploy/rendered/`, токен бота, дампы и архивы. Пример окружения с рабочей станции на узел как боевой конфиг не копируют.
 
-Пароли сервисов чата лежат в `/home/sui/tailnet-messenger/secrets/` с режимом `600`. Пароль Grafana там же. Платформа читает этот файл только внутрь контейнера. Токен Telegram для Alertmanager лежит в `runtime/telegram_token` с режимом `644`: контейнер читает его как `nobody`. Каталог `runtime/` в git не входит. В yaml токена нет.
+Пароли сервисов чата лежат в `/home/sui/sui-host/chat/secrets/` с режимом `600`. Пароль Grafana там же. Платформа читает этот файл только внутрь контейнера. Токен Telegram для Alertmanager лежит в `monitoring/runtime/telegram_token` с режимом `644`: контейнер читает его как `nobody`. Каталог `runtime/` в git не входит. В yaml токена нет.
 
-Приёмка чата и отклонённые схемы: `docs/spec/SPEC.md` и `docs/adr/` в `N4L34/tailnet-messenger`.
+Приёмка чата и отклонённые схемы: `chat/docs/spec/SPEC.md` и `chat/docs/adr/`. Заметки без кода остаются в `N4L34/svoi` и на приставке не лежат.

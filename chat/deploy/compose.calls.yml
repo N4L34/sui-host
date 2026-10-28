@@ -3,6 +3,8 @@
 services:
   livekit:
     image: ${LIVEKIT_IMAGE}
+    pull_policy: missing
+    init: true
     command: ["--config", "/etc/livekit.yaml"]
     volumes:
       - ./rendered/livekit.yaml:/etc/livekit.yaml:ro
@@ -21,9 +23,16 @@ services:
       options:
         max-size: "10m"
         max-file: "5"
+    memswap_limit: 512M
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   lk-jwt:
     image: ${LK_JWT_IMAGE}
+    pull_policy: missing
+    init: true
     env_file:
       - ../secrets/calls.env
     environment:
@@ -42,6 +51,11 @@ services:
       options:
         max-size: "10m"
         max-file: "5"
+    memswap_limit: 128M
+    deploy:
+      resources:
+        limits:
+          memory: 128M
 
   # Answers https://<server-name>:{443,8448,8444} for lk-jwt only.
   # Host ports are intentionally absent: Docker cannot reach Tailscale Serve,
@@ -49,7 +63,9 @@ services:
   # this container with extra_hosts.
   call-dial:
     image: ${CADDY_IMAGE}
+    pull_policy: missing
     user: "0:0"
+    init: true
     volumes:
       - ./rendered/Caddyfile.dial:/etc/caddy/Caddyfile:ro
       - ../secrets/tailscale.crt:/certs/fullchain.pem:ro
@@ -64,9 +80,16 @@ services:
       options:
         max-size: "10m"
         max-file: "5"
+    memswap_limit: 128M
+    deploy:
+      resources:
+        limits:
+          memory: 128M
 
   calls-proxy:
     image: ${CADDY_IMAGE}
+    pull_policy: missing
+    init: true
     volumes:
       - ./rendered/Caddyfile.calls:/etc/caddy/Caddyfile:ro
     ports:
@@ -80,3 +103,13 @@ services:
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    memswap_limit: 128M
+    deploy:
+      resources:
+        limits:
+          memory: 128M

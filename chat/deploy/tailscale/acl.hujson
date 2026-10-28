@@ -5,7 +5,7 @@
 // Members can open the chat and Element Web.
 // Call ports are listed so the optional calls profile does not need a second edit.
 // Those ports listen only when ENABLE_CALLS=true, and only on the Tailscale address.
-// Admins can SSH. Grafana is on tcp/443 with the chat and asks for the admin password.
+// Admins can also SSH and open Grafana (tcp/3443) on this tagged node.
 {
   "tagOwners": {
     "tag:messenger": ["autogroup:admin"],

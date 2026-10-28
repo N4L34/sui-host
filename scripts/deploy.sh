@@ -13,12 +13,12 @@ if git -C "$src" rev-parse --verify HEAD~1 >/dev/null 2>&1; then
       monitoring/* | scripts/* | systemd/* | runner/*) runtime=1; services+=(monitoring) ;;
       commands/*) runtime=1; services+=(commands) ;;
       avtobot/*) runtime=1; services+=(avtobot) ;;
-      chat/*) ;;
+      chat/*) runtime=1; services+=(chat) ;;
     esac
   done < <(git -C "$src" diff --name-only HEAD~1 HEAD)
 else
   runtime=1
-  services=(monitoring commands avtobot)
+  services=(monitoring commands avtobot chat)
 fi
 
 if [ "$runtime" -eq 0 ]; then
@@ -51,9 +51,39 @@ backup=$(mktemp -d)
 for name in "${uniq[@]}"; do
   mkdir -p "$backup/$name"
   if [ -d "$dest/$name" ]; then
-    cp -a "$dest/$name/." "$backup/$name/"
+    if [ "$name" = chat ]; then
+      rsync -a --exclude 'secrets/' --exclude '.env' --exclude 'backups/' --exclude 'deploy/rendered/' "$dest/$name/" "$backup/$name/"
+    else
+      cp -a "$dest/$name/." "$backup/$name/"
+    fi
   fi
 done
+
+compose_up() {
+  local name=$1
+  if [ "$name" != chat ]; then
+    (cd "$dest/$name" && docker compose up -d)
+    return
+  fi
+  local parts
+  parts=$(curl -fsS --max-time 5 --get --data-urlencode 'query=max(livekit_participant_total)' http://127.0.0.1:9091/api/v1/query \
+    | python3 -c 'import sys,json; d=json.load(sys.stdin); r=d.get("data",{}).get("result",[]); print(r[0]["value"][1] if r else "0")')
+  if [ "$parts" != "0" ]; then
+    echo "call has participants, chat containers stay"
+    return 0
+  fi
+  (
+    cd "$dest/chat"
+    export TAILSCALE_IPV4
+    TAILSCALE_IPV4=$(tr -d '[:space:]' < secrets/tailscale_ipv4)
+    docker compose --env-file .env \
+      -f deploy/compose.yml \
+      -f deploy/compose.calls.yml \
+      -f deploy/rendered/compose.dial.yml \
+      -f deploy/compose.platform-net.yml \
+      up -d
+  )
+}
 
 restore() {
   echo "restore previous service files"
@@ -61,7 +91,7 @@ restore() {
     if [ -d "$backup/$name" ]; then
       mkdir -p "$dest/$name"
       cp -a "$backup/$name/." "$dest/$name/"
-      (cd "$dest/$name" && docker compose up -d) || true
+      compose_up "$name" || true
     fi
   done
 }
@@ -74,6 +104,13 @@ rsync -a \
   "$src/monitoring/" "$dest/monitoring/"
 rsync -a --exclude 'secrets/' "$src/commands/" "$dest/commands/"
 rsync -a --exclude 'secrets/' "$src/avtobot/" "$dest/avtobot/"
+rsync -a \
+  --exclude '.env' \
+  --exclude 'secrets/' \
+  --exclude 'backups/' \
+  --exclude 'deploy/rendered/' \
+  --exclude 'deploy/observe/alertmanager/bot_token' \
+  "$src/chat/" "$dest/chat/"
 rsync -a "$src/scripts/" "$dest/scripts/"
 rsync -a "$src/systemd/" "$dest/systemd/"
 rsync -a "$src/runner/" "$dest/runner/"
@@ -92,7 +129,7 @@ if [ -f "$dest/monitoring/runtime/telegram_chat_id" ] && [ -f "$dest/monitoring/
 fi
 
 for name in "${uniq[@]}"; do
-  if ! (cd "$dest/$name" && docker compose up -d); then
+  if ! compose_up "$name"; then
     restore
     exit 1
   fi
@@ -110,7 +147,7 @@ if printf '%s\n' "${uniq[@]}" | grep -qx monitoring; then
   fi
 fi
 
-text=/home/sui/tailnet-messenger/deploy/rendered/textfile
+text=/home/sui/sui-host/chat/deploy/rendered/textfile
 if [ -d "$text" ]; then
   printf 'monitoring_git_sha_info{sha="%s"} 1\n' "$sha" > "$text/monitoring_git_sha.prom"
 fi

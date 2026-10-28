@@ -12,9 +12,10 @@
 
 Имя сервера — MagicDNS-имя узла, `*.ts.net`. `tailscale serve` выпускает сертификат Tailscale и проксирует HTTPS на loopback:
 
-- 443 `/` → Grafana, когда она отвечает на loopback. `/_matrix`, `/_synapse` и `/.well-known` на этом же порту идут в Synapse. Если Grafana выключена, весь 443 снова у Synapse
+- 443 → `127.0.0.1:8008` Synapse
 - 8443 → `127.0.0.1:8080` Element Web
 - 8444 → звонки, только когда профиль включён
+- 3443 → Grafana, только когда она уже отвечает на loopback
 
 Публичный Caddy с ACME на 443 не ставим. Порт 8448 не публикуем.
 

@@ -24,8 +24,14 @@ services:
     command:
       - --config.file=/etc/alertmanager/alertmanager.yml
       - --storage.path=/alertmanager
+    # The DNS address of api.telegram.org is blackholed on this link.
+    # 149.154.167.220 presents a valid certificate for that name.
+    extra_hosts:
+      - "api.telegram.org:${TELEGRAM_API_IP:-149.154.167.220}"
     volumes:
       - ./rendered/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ./observe/alertmanager/telegram.tmpl:/etc/alertmanager/telegram.tmpl:ro
+      - ./observe/alertmanager/bot_token:/etc/alertmanager/telegram_token:ro
       - alert-data:/alertmanager
     networks:
       - edge

@@ -4,5 +4,8 @@ After=svoi.service
 
 [Service]
 Type=oneshot
-WorkingDirectory=/opt/tailnet-messenger
+User=sui
+Group=sui
+SupplementaryGroups=docker
+WorkingDirectory=/home/sui/sui-host/chat
 ExecStart=/usr/bin/make backup

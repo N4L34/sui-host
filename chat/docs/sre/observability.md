@@ -18,7 +18,7 @@ Prometheus слушает `127.0.0.1:9091` на хосте и в tailnet чер�
 - postgres-exporter на внутренней сети `data`, порт наружу хоста не проброшен.
 - blackbox-apps ходит на Element Web, сервис токенов звонка, прокси звонков и LiveKit. Эти пробы не входят в алерт `HomeserverDown`.
 - Loki хранит логи 168 часов, схема v13, файловый tsdb. Alloy читает сокет Docker и пишет в Loki. Сокет равносилен root. Это записано в модели угроз.
-- Alertmanager. Пустой `ALERT_WEBHOOK_URL` оставляет получателя без интеграций. На публичный ntfy по умолчанию ничего не уходит.
+- Alertmanager. Пустой `ALERT_WEBHOOK_URL` сам по себе никуда не шлёт. Если лежат `secrets/telegram_bot_token` и `secrets/telegram_chat_id`, страницы уходят в Telegram. Токен в yaml не записывается: контейнер читает файл. На домашнем канале адрес `api.telegram.org` из DNS не отвечает. Рабочий адрес с тем же сертификатом задаётся `TELEGRAM_API_IP` (по умолчанию `149.154.167.220`) и попадает только в контейнер Alertmanager.
 
 Теги образов закреплены в `.env.example`. Ядро (Synapse, Element Web, Postgres) сверено с релизами. Теги Prometheus, Grafana, Loki, Alloy, Alertmanager, node_exporter, cAdvisor, blackbox, LiveKit и Caddy записаны явно. Если тег когда-нибудь не найдётся, падает только этот профиль, не чат. Перед первым `make observe` имеет смысл `docker compose -f deploy/compose.observe.yml --env-file .env config` и один pull.
 
@@ -29,10 +29,19 @@ Prometheus слушает `127.0.0.1:9091` на хосте и в tailnet чер�
 | Имя | Условие | Зачем |
 | --- | --- | --- |
 | `HomeserverDown` | `probe_success{job="blackbox-http"} == 0` дольше 2 минут | API не отвечает |
-| `SynapseMetricsDown` | `up{job="synapse"} == 0` дольше 2 минут | Жив прокси, мертвы метрики Synapse, или наоборот |
 | `DiskSpaceLow` | свободно меньше 15% на ext4, xfs, btrfs или zfs дольше 10 минут | Диск. На APFS Mac этот ряд может не появиться |
 | `BackupStale` | локальная метрика старше 26 часов | Пропущенный почасовой бэкап с запасом |
 | `OffsiteBackupStale` | offsite-метрика старше 26 часов | Срабатывает только после первого успешного restic. Свежая установка без restic из-за этого не красная |
+| `OomKill` | `node_vmstat_oom_kill` вырос за 15 минут | Ядро убило процесс. Контейнер может подняться раньше, чем проба чата покраснеет |
+| `MatrixPrefixDown` | `messenger_matrix_prefix_ok == 0` дольше 2 минут | С телефона `https://<имя>/_matrix/client/versions` не отдаёт JSON версий. Внутренний blackbox этого не видит |
+| `CallsNotReady` | `messenger_calls_ready == 0` дольше 5 минут | Звонки включены, а `/rtc/v1/validate` отвечает не 401 или порты LiveKit не на адресе Tailscale. Сам `/rtc/v1` отвечает 404 и на рабочем образе. Ряд пишется только при `ENABLE_CALLS=true` |
+| `EdgeProbeStale` | проверка адреса старше 5 минут | Таймер `svoi-edge-probe.timer` остановился |
+
+Текст в Telegram берётся из `summary` на время поломки и из `resolved`, когда она гаснет. Имя алерта и адрес Docker в канал не пишутся. Повтор одной страницы раз в 4 часа.
+
+Утреннее сообщение в 08:00 и недельное в воскресенье в 11:00 по Москве шлёт `scripts/telegram_notify.py`. Часы хоста в UTC, поэтому в таймерах стоят 05:00 и воскресные 08:00 UTC. На этой версии systemd поле `Timezone=` в таймере не действует. Тихое утро — одна строка. Метрики Synapse, которые молчат при живом чате, остаются в утреннем тексте и отдельной страницей не будят. Конец звонка с телефона в канал не пишется.
+
+Людей и комнаты ведёт проект `commands` в `/home/sui/sui-host/commands`. Служба `svoi-telegram-bot.service` снята. `svoi.service` для бота не перезапускают.
 
 Диск не привязан к одному `mountpoint="/"`, чтобы не пропустить отдельный том с Docker.
 

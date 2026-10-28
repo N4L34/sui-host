@@ -8,7 +8,7 @@ if [[ ! -f .env ]]; then
 fi
 
 bash "$ROOT/scripts/init.sh"
-python3 -m py_compile scripts/render_config.py scripts/matrix_admin.py
+python3 -m py_compile scripts/render_config.py scripts/matrix_admin.py scripts/telegram_notify.py
 python3 "$ROOT/scripts/render_config.py"
 
 need_cmd shellcheck
@@ -29,12 +29,20 @@ for needle in (
     "enable_registration: false",
     "url_preview_enabled: false",
     "encryption_enabled_by_default: true",
+    "rc_login:",
+    "failed_attempts:",
 ):
     if needle not in text:
         raise SystemExit(f"missing {needle}")
 if "names: [federation]" in text or "names: [client, federation]" in text:
     raise SystemExit("federation listener rendered")
 json.loads(Path("deploy/rendered/element-config.json").read_text())
+am = Path("deploy/rendered/alertmanager.yml").read_text()
+has_telegram = Path("secrets/telegram_bot_token").is_file() and Path("secrets/telegram_chat_id").is_file()
+if has_telegram and "telegram_configs" not in am:
+    raise SystemExit("telegram secrets present but alertmanager has no telegram receiver")
+if not has_telegram and "telegram_configs" in am:
+    raise SystemExit("telegram rendered without secrets")
 print("render check ok")
 PY
 
@@ -51,7 +59,7 @@ env = mod.read_env(Path(".env"))
 env["ENABLE_CALLS"] = "true"
 server = env["MATRIX_SERVER_NAME"].strip().rstrip(".")
 homeserver = mod.homeserver(env, server)
-for needle in ("names: [openid]", "/livekit/jwt"):
+for needle in ("names: [openid]", "/livekit/jwt", "rc_login:", "failed_attempts:"):
     if needle not in homeserver:
         raise SystemExit(f"calls render missing {needle}")
 if "names: [federation]" in homeserver or "names: [client, federation]" in homeserver:
@@ -87,6 +95,9 @@ if command -v docker >/dev/null 2>&1; then
   fi
   if [[ ! -e secrets/tailscale.key ]]; then
     printf '%s\n' 'ci-placeholder' > secrets/tailscale.key
+  fi
+  if [[ ! -e deploy/observe/alertmanager/bot_token ]]; then
+    printf '\n' > deploy/observe/alertmanager/bot_token
   fi
   docker compose --env-file .env -f deploy/compose.yml config >/dev/null
   docker compose --env-file .env -f deploy/compose.yml -f deploy/compose.calls.yml config >/dev/null

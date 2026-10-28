@@ -1,5 +1,6 @@
 .env
 secrets/
+deploy/observe/alertmanager/bot_token
 __pycache__/
 *.pyc
 deploy/rendered/
