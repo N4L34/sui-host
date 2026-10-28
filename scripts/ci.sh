@@ -39,7 +39,7 @@ docker compose --env-file monitoring/.env.example -f monitoring/compose.yml conf
 python3 scripts/policy.py < "$rendered"
 rm -f "$rendered"
 
-for project in commands avtobot; do
+for project in commands avtobot screen; do
   docker compose -f "$project/compose.yml" config --quiet
 done
 
@@ -86,7 +86,7 @@ docker run --rm \
   -v "$root:/work" \
   -w /work \
   python:3.12-alpine \
-  sh -c 'pip install -q yamllint==1.35.1 && yamllint -c .yamllint.yml monitoring/compose.yml monitoring/platform commands/compose.yml avtobot/compose.yml runner/compose.yml .github'
+  sh -c 'pip install -q yamllint==1.35.1 && yamllint -c .yamllint.yml monitoring/compose.yml monitoring/platform commands/compose.yml avtobot/compose.yml screen/compose.yml runner/compose.yml .github'
 
 docker run --rm \
   -v "$root:/work" \

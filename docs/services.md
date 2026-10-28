@@ -1,8 +1,8 @@
 # Сервисы
 
-Состав узла на 28 октября 2026. Образы мониторинга закреплены в `monitoring/.env.example`. Код и живой процесс каждого сервиса лежат в `/home/sui/sui-host/<имя>`. Этот файл — инвентарь, а не второй источник тегов.
+Состав узла на 29 октября 2026. Образы мониторинга закреплены в `monitoring/.env.example`. Код и живой процесс каждого сервиса лежат в `/home/sui/sui-host/<имя>`. Этот файл — инвентарь, а не второй источник тегов.
 
-Долгий проект — контейнер своего Compose. У каждого Compose свой срез мониторинга: метка `project` на проверках и фильтр на дашборде `Свои`. Чат — `chat`, платформа — `monitoring`, команды — `commands`, номера — `avtobot`. Короткое задание, которое завершается, остаётся таймером: discover, резервная копия, утренняя сводка, проверка края. Долгий процесс запускает только юнит его проекта. Юнит вызывает `docker compose up -d` и останавливает `docker compose stop`. Скрипт, интерпретатор и `docker run` этот процесс не запускают.
+Долгий проект — контейнер своего Compose. У каждого Compose свой срез мониторинга: метка `project` на проверках и фильтр на дашборде `Свои`. Чат — `chat`, платформа — `monitoring`, команды — `commands`, номера — `avtobot`, экран — `screen`. Короткое задание, которое завершается, остаётся таймером: discover, резервная копия, утренняя сводка, проверка края. Долгий процесс запускает только юнит его проекта. Юнит вызывает `docker compose up -d` и останавливает `docker compose stop`. Скрипт, интерпретатор и `docker run` этот процесс не запускают.
 
 ## Хост
 
@@ -17,6 +17,7 @@
 | `svoi-edge-probe.timer` | раз в минуту проверяет чат и звонки через Tailscale и завершается |
 | `commands.service` | Compose `commands` из `/home/sui/sui-host/commands`. В `ExecStart` только `docker compose up -d` |
 | `avtobot.service` | Compose `avtobot` из `/home/sui/sui-host/avtobot`. В `ExecStart` только `docker compose up -d` |
+| `screen.service` | Compose `screen` из `/home/sui/sui-host/screen`. В `ExecStart` только `docker compose up -d` |
 | `svoi-telegram-morning.timer` | сводка в 05:00 UTC, 08:00 Europe/Moscow, и завершается |
 | `svoi-telegram-week.timer` | сводка в воскресенье 08:00 UTC, 11:00 Europe/Moscow, и завершается |
 | `sui-dark-mode.service` | гасит панель устройства |
@@ -82,6 +83,10 @@ Page-алерт уходит, когда чат не отвечает, серв�
 ## avtobot
 
 Проект Compose `avtobot`, код в `/home/sui/sui-host/avtobot`, служба `avtobot.service`. Образ `avtobot:2026.10.28`, внутри Chrome `156.0.8078.47`. К чату не подключён. Состояние, профиль браузера и секреты остаются в `/home/sui/avtobot`: `history.sqlite` и `chrome-profile`. Порта на хост нет. Человек пишет боту в Telegram. Проверка `http://avtobot:8080/health`, page-алерта нет. Локальный прокси — второй сервис того же проекта, слушает только внутри его сети. Конфиг лежит в `secrets/` этого каталога и в git не копируется. Запросы к сайту идут мимо прокси.
+
+## Экран
+
+Проект Compose `screen`, код в `/home/sui/sui-host/screen`, служба `screen.service`. Образ `screen:2026.10.29`. К чату не подключён. Порта на хост нет. Процесс пишет в sysfs панели: яркость `0` сама её не гасит, поэтому каталоги `/sys/class` и `/sys/devices` смонтированы в контейнер, а пользователь образа `0:0`. Проверка `http://screen:8080/health`, page-алерта нет. `sui-dark-mode.service` по-прежнему гасит панель один раз при загрузке.
 
 ## Доступ
 

@@ -1,0 +1,51 @@
+name: screen
+
+x-log: &jsonlog
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  screen:
+    build: .
+    image: screen:2026.10.29
+    pull_policy: missing
+    user: "0:0"
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      TZ: Europe/Moscow
+      PYTHONUNBUFFERED: "1"
+    volumes:
+      - /sys/class:/host/sys/class
+      - /sys/devices:/host/sys/devices
+    networks:
+      - monitoring
+    memswap_limit: 64M
+    logging: *jsonlog
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    labels:
+      monitoring.project: screen
+      monitoring.service: screen
+      monitoring.probe: http://screen:8080/health
+      monitoring.name: Экран
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+
+networks:
+  monitoring:
+    external: true
+    name: monitoring

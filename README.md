@@ -9,6 +9,7 @@
 | `monitoring` | `monitoring` | Prometheus, Grafana, Loki, алерты |
 | `commands` | `commands` | команды чата в Telegram |
 | `avtobot` | `avtobot` | номера |
+| `screen` | `screen` | панель Sui Play выключена |
 | `chat` | `chat` | Matrix из `/home/sui/sui-host/chat` |
 
 `N4L34/svoi` остаётся заметками и на узле не нужен.

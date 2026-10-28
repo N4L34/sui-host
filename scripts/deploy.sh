@@ -13,12 +13,13 @@ if git -C "$src" rev-parse --verify HEAD~1 >/dev/null 2>&1; then
       monitoring/* | scripts/* | systemd/* | runner/*) runtime=1; services+=(monitoring) ;;
       commands/*) runtime=1; services+=(commands) ;;
       avtobot/*) runtime=1; services+=(avtobot) ;;
+      screen/*) runtime=1; services+=(screen) ;;
       chat/*) runtime=1; services+=(chat) ;;
     esac
   done < <(git -C "$src" diff --name-only HEAD~1 HEAD)
 else
   runtime=1
-  services=(monitoring commands avtobot chat)
+  services=(monitoring commands avtobot screen chat)
 fi
 
 if [ "$runtime" -eq 0 ]; then
@@ -104,6 +105,7 @@ rsync -a \
   "$src/monitoring/" "$dest/monitoring/"
 rsync -a --exclude 'secrets/' "$src/commands/" "$dest/commands/"
 rsync -a --exclude 'secrets/' "$src/avtobot/" "$dest/avtobot/"
+rsync -a --exclude 'secrets/' "$src/screen/" "$dest/screen/"
 rsync -a \
   --exclude '.env' \
   --exclude 'secrets/' \
