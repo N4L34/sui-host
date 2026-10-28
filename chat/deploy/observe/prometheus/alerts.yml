@@ -1,0 +1,51 @@
+groups:
+  - name: svoi
+    rules:
+      - alert: HomeserverDown
+        expr: probe_success{job="blackbox-http"} == 0
+        for: 2m
+        labels:
+          severity: page
+        annotations:
+          summary: "Homeserver probe {{ $labels.instance }} is failing"
+          description: "Blackbox has seen failures for 2 minutes. Open docs/runbooks/homeserver-down.md."
+
+      - alert: SynapseMetricsDown
+        expr: up{job="synapse"} == 0
+        for: 2m
+        labels:
+          severity: page
+        annotations:
+          summary: "Synapse metrics endpoint is down"
+
+      - alert: DiskSpaceLow
+        expr: |
+          (
+            node_filesystem_avail_bytes{fstype=~"ext4|xfs|btrfs|zfs"}
+            /
+            node_filesystem_size_bytes{fstype=~"ext4|xfs|btrfs|zfs"}
+          ) < 0.15
+          and node_filesystem_size_bytes > 0
+        for: 10m
+        labels:
+          severity: page
+        annotations:
+          summary: "Filesystem {{ $labels.mountpoint }} has under 15% free"
+          description: "Open docs/runbooks/disk-full.md."
+
+      - alert: BackupStale
+        expr: (time() - messenger_last_backup_success_timestamp) > 26 * 3600
+        for: 15m
+        labels:
+          severity: page
+        annotations:
+          summary: "Last successful backup is older than 26 hours"
+
+      - alert: OffsiteBackupStale
+        expr: (time() - messenger_last_offsite_backup_success_timestamp) > 26 * 3600
+        for: 15m
+        labels:
+          severity: page
+        annotations:
+          summary: "Last restic backup is older than 26 hours"
+          description: "This alert exists only after the first successful offsite backup."

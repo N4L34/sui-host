@@ -27,8 +27,8 @@ Tailscale Serve на sui
 ## Слои
 
 1. Хост. Docker, Tailscale, systemd. Каталог `/home/sui`.
-2. Мониторинг. Проект Compose `monitoring` в `/opt/monitoring`: Prometheus, Grafana, Loki, Alloy, Alertmanager, cAdvisor, node-exporter, blackbox-exporter, postgres-exporter. Общая сеть Docker называется `monitoring`. Её создаёт `monitoring.service`. Путь `/home/sui/sui-host` — ссылка на этот каталог.
-3. Проекты. У каждого свой каталог и свой Compose. Чат — проект `chat` в `/home/sui/tailnet-messenger`: Synapse, Postgres, Element, звонки. Он подключён к сети `monitoring` на тех же условиях, что и любой другой сервис. Служба systemd чата по-прежнему называется `svoi.service`.
+2. Мониторинг. Проект Compose `monitoring` в `/home/sui/sui-host/monitoring`: Prometheus, Grafana, Loki, Alloy, Alertmanager, cAdvisor, node-exporter, blackbox-exporter, postgres-exporter. Общая сеть Docker называется `monitoring`. Её создаёт `monitoring.service`.
+3. Проекты. У каждого своя папка в `/home/sui/sui-host` и свой Compose. Чат — проект `chat`: Synapse, Postgres, Element, звонки. Код в папке `chat`, живой процесс пока из `/home/sui/tailnet-messenger`. Он подключён к сети `monitoring` на тех же условиях, что и любой другой сервис. Служба systemd чата по-прежнему называется `svoi.service`.
 
 Чат, мониторинг и остальные проекты не делят базу. Общие для них машина, Tailscale и выход к Telegram через адрес `149.154.167.220`: имя `api.telegram.org` с узла не резолвится.
 
@@ -44,7 +44,7 @@ Grafana открыта с корня `https://sui.example.com/`. Логин `adm
 
 cAdvisor и Alloy читают сокет Docker и забирают память, CPU, перезапуски и журнал любого контейнера на узле. Отдельный дашборд для этого не заводят. Alloy монтирует `/var/run/docker.sock`. cAdvisor запущен с `privileged` и читает корень хоста и сокет containerd. Оба исключения принадлежат мониторингу: без них нет общего журнала и общих графиков. Новому проекту сокет Docker и `privileged` не дают.
 
-Сеть `monitoring` общая. Срез мониторинга у каждого Compose свой. `discover.py` берёт имя проекта из метки `monitoring.project`, а если её нет — из `com.docker.compose.project`, которую Compose ставит сам. Цель записывается как `проект/сервис`. Чат — проект `chat`, платформа — проект `monitoring`, следующий продукт — своё имя. Одинаковое имя сервиса в двух проектах не сливается в одну проверку. Дашборд `Свои` фильтруется этим именем. Page-алерт в Telegram начинается с него.
+Сеть `monitoring` общая. Срез мониторинга у каждого Compose свой. `discover.py` берёт имя проекта из метки `monitoring.project`, а если её нет — из `com.docker.compose.project`, которую Compose ставит сам. Цель записывается как `проект/сервис`. Чат — проект `chat`, мониторинг — проект `monitoring`, команды — `commands`, номера — `avtobot`. Следующий сервис получает своё имя папки. Одинаковое имя сервиса в двух проектах не сливается в одну проверку. Дашборд `Свои` фильтруется этим именем. Page-алерт в Telegram начинается с него.
 
 Метки `monitoring.*` добавляют HTTP-проверку, сбор `/metrics` и page-алерт, если стоит `monitoring.alert=page`. Список целей `discover.py` переписывает раз в 15 секунд. Prometheus этот список только читает. Второй стек наблюдения новому проекту не копируют.
 

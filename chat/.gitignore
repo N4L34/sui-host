@@ -1,0 +1,17 @@
+.env
+secrets/
+__pycache__/
+*.pyc
+deploy/rendered/
+backups/
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+.terraform/
+.terraform.lock.hcl
+crash.log
+*.dump
+*.tar
+.DS_Store
+ansible/retry/
+*.retry

@@ -1,0 +1,83 @@
+name: avtobot
+
+x-log: &jsonlog
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  avtobot:
+    build: .
+    image: avtobot:2026.10.28
+    pull_policy: missing
+    user: "1000:1000"
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:uid=1000,gid=1000,mode=1777
+      - /home/avtobot:uid=1000,gid=1000,mode=755
+    shm_size: "256mb"
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      TZ: Europe/Moscow
+      PYTHONUNBUFFERED: "1"
+    volumes:
+      - /home/sui/avtobot/secrets/telegram_bot_token:/app/secrets/telegram_bot_token:ro
+      - /home/sui/avtobot/history.sqlite:/app/history.sqlite
+      - /home/sui/avtobot/offset:/app/offset
+      - /home/sui/avtobot/chrome-profile:/app/chrome-profile
+    networks:
+      - monitoring
+    memswap_limit: 1536M
+    logging: *jsonlog
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    labels:
+      monitoring.project: avtobot
+      monitoring.service: avtobot
+      monitoring.probe: http://avtobot:8080/health
+      monitoring.name: Номера
+    deploy:
+      resources:
+        limits:
+          memory: 1536M
+
+  proxy:
+    image: avtobot:2026.10.28
+    pull_policy: missing
+    network_mode: "service:avtobot"
+    depends_on:
+      avtobot:
+        condition: service_started
+    user: "1000:1000"
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    command: ["/usr/local/bin/xray", "run", "-c", "/secrets/xray.json"]
+    volumes:
+      - /home/sui/avtobot/bin/xray:/usr/local/bin/xray:ro
+      - /home/sui/avtobot/secrets/xray.json:/secrets/xray.json:ro
+    memswap_limit: 128M
+    logging: *jsonlog
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+networks:
+  monitoring:
+    external: true
+    name: monitoring

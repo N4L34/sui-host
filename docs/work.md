@@ -41,7 +41,7 @@ docker compose stop
 docker compose up --no-deps -d <сервис>
 ```
 
-`docker compose down` в `/opt/monitoring` и в чужом каталоге не вызывают: команда удаляет контейнеры. Флаг `--remove-orphans` не ставят.
+`docker compose down` в папках сервисов не вызывают: команда удаляет контейнеры. Флаг `--remove-orphans` не ставят.
 
 `/home/sui/commands` и `/home/sui/avtobot` поднимают той же командой. Из этих каталогов не запускают `python3`, `bot.py`, `selftest.py` и проверку, которая создаёт пользователя. Второй процесс на тот же токен не держат.
 
@@ -53,7 +53,7 @@ docker compose up --no-deps -d <сервис>
 
 `make up` в каталоге чата вызывает `render_config.py` и пересоздаёт LiveKit. Во время звонка его не запускают. Полный `scripts/render_config.py` переписывает homeserver, Element, LiveKit и Caddy. На узле так не делают. Правят уже сгенерированный файл и перезапускают только контейнер, который его читает.
 
-Мониторинг поднимает `monitoring.service` из `/opt/monitoring`. Остановка: `docker compose stop` в этом каталоге. У чата `SVOI_OBSERVE=false`. Иначе следующий запуск `svoi.service` поднимет второй Grafana. Флаг меняют в drop-in и ради этого `svoi.service` не перезапускают.
+Мониторинг поднимает `monitoring.service` из `/home/sui/sui-host/monitoring`. Команды и номера поднимают свои юниты из своих папок. Остановка: `docker compose stop` в папке сервиса. У чата `SVOI_OBSERVE=false`. Иначе следующий запуск `svoi.service` поднимет второй Grafana. Флаг меняют в drop-in и ради этого `svoi.service` не перезапускают. Живой чат остаётся в `/home/sui/tailnet-messenger`.
 
 Пересоздание `chat-livekit-1` рвёт текущий звонок. `rsync` поверх файла, который уже примонтирован в контейнер, оставляет процесс на старом inode. Такой контейнер пересоздают точечно. LiveKit при активном звонке не трогают.
 

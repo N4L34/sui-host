@@ -1,0 +1,8 @@
+[Unit]
+Description=Svoi backup
+After=svoi.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/tailnet-messenger
+ExecStart=/usr/bin/make backup

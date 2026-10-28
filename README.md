@@ -1,25 +1,23 @@
 # sui
 
-Платформа узла `sui`: метрики, логи, алерты и правила, по которым к ней подключают сервис.
+Репозиторий узла `sui`. Каждый сервис лежит в своей папке и собирается своим Compose.
 
-Узел `sui.example.com`, адрес Tailscale `100.64.0.10`. Вход клиентов только через Tailscale Serve по этому имени. Публичного слушателя нет. Код приложений в этот репозиторий не кладут: новый проект получает свой каталог и свой Compose.
+Узел `sui.example.com`, адрес Tailscale `100.64.0.10`. Вход клиентов только через Tailscale Serve по этому имени. Публичного слушателя нет. На узле один клон `/home/sui/sui-host`.
 
-| Репозиторий | Содержание |
-| --- | --- |
-| `N4L34/sui-host` | платформа и правила подключения сервиса |
-| `N4L34/tailnet-messenger` | Matrix: Synapse, Element, звонки |
-| `N4L34/svoi` | операционные заметки по чату |
+| Папка | Compose | Что делает |
+| --- | --- | --- |
+| `monitoring` | `monitoring` | Prometheus, Grafana, Loki, алерты |
+| `commands` | `commands` | команды чата в Telegram |
+| `avtobot` | `avtobot` | номера |
+| `chat` | `chat` | Matrix. Код уже в папке, живой процесс пока из `/home/sui/tailnet-messenger` |
 
-## Состав
+`N4L34/svoi` остаётся заметками и на узле не нужен.
 
-Каталог на узле `/opt/monitoring`. Путь `/home/sui/sui-host` ведёт туда ссылкой. Проект Compose и общая сеть Docker называются `monitoring`. Чат — отдельный проект `chat` в `/home/sui/tailnet-messenger`.
-
-- `compose.yml` собирает Prometheus, Grafana, Loki, Alloy, Alertmanager, cAdvisor, node-exporter, blackbox-exporter и postgres-exporter.
-- `platform/` хранит конфиги и инвентарь целей, у которых ещё нет меток.
+- `monitoring/platform/` хранит конфиги мониторинга и инвентарь целей, у которых ещё нет меток.
 - `scripts/discover.py` переносит метки контейнеров в file_sd Prometheus.
-- `systemd/` содержит `monitoring.service` и `monitoring-discover.timer`.
+- `systemd/` содержит юниты сервисов. Юнит вызывает только `docker compose up -d` и `docker compose stop`.
 
-Образы платформы закреплены тегами в `.env.example`.
+Образы мониторинга закреплены тегами в `monitoring/.env.example`.
 
 ## Куда смотреть
 

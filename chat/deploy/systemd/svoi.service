@@ -1,0 +1,20 @@
+[Unit]
+Description=Svoi Matrix stack
+After=docker.service tailscaled.service network-online.target
+Requires=docker.service
+Wants=tailscaled.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/tailnet-messenger
+# The host unit uses /home/sui/tailnet-messenger. Observe must come back
+# on boot, not only the chat profile.
+Environment=SVOI_OBSERVE=true
+ExecStart=/usr/bin/make up
+ExecStartPost=/usr/bin/make serve
+ExecStop=/usr/bin/make down
+TimeoutStartSec=300
+
+[Install]
+WantedBy=multi-user.target

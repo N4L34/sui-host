@@ -1,0 +1,82 @@
+# Optional voice and video. Off unless ENABLE_CALLS=true.
+# Media ports bind the Tailscale address only, so the rest of the VPS stays as it is.
+services:
+  livekit:
+    image: ${LIVEKIT_IMAGE}
+    command: ["--config", "/etc/livekit.yaml"]
+    volumes:
+      - ./rendered/livekit.yaml:/etc/livekit.yaml:ro
+    ports:
+      - "127.0.0.1:7880:7880"
+      - "${TAILSCALE_IPV4:-127.0.0.1}:7881:7881/tcp"
+      - "${TAILSCALE_IPV4:-127.0.0.1}:7881:7881/udp"
+      - "${TAILSCALE_IPV4:-127.0.0.1}:50000-50100:50000-50100/udp"
+    networks:
+      - edge
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  lk-jwt:
+    image: ${LK_JWT_IMAGE}
+    env_file:
+      - ../secrets/calls.env
+    environment:
+      LIVEKIT_URL: wss://${MATRIX_SERVER_NAME}:8444/livekit/sfu
+      LIVEKIT_KEY: matrixrtc
+      LIVEKIT_FULL_ACCESS_HOMESERVERS: ${MATRIX_SERVER_NAME}
+      LIVEKIT_CS_API_URL_OVERRIDES: ${MATRIX_SERVER_NAME}=http://synapse:8008
+      LIVEKIT_JWT_BIND: ":8080"
+    networks:
+      - edge
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # Answers https://<server-name>:{443,8448,8444} for lk-jwt only.
+  # Host ports are intentionally absent: Docker cannot reach Tailscale Serve,
+  # and 8448 must not be published on 0.0.0.0. scripts/up.sh points lk-jwt at
+  # this container with extra_hosts.
+  call-dial:
+    image: ${CADDY_IMAGE}
+    user: "0:0"
+    volumes:
+      - ./rendered/Caddyfile.dial:/etc/caddy/Caddyfile:ro
+      - ../secrets/tailscale.crt:/certs/fullchain.pem:ro
+      - ../secrets/tailscale.key:/certs/privkey.pem:ro
+    networks:
+      - edge
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  calls-proxy:
+    image: ${CADDY_IMAGE}
+    volumes:
+      - ./rendered/Caddyfile.calls:/etc/caddy/Caddyfile:ro
+    ports:
+      - "127.0.0.1:7882:80"
+    networks:
+      - edge
+    depends_on:
+      - livekit
+      - lk-jwt
+      - call-dial
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true

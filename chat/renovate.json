@@ -1,0 +1,23 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "dependencyDashboard": true,
+  "labels": ["dependencies"],
+  "packageRules": [
+    {
+      "matchManagers": ["github-actions"],
+      "groupName": "GitHub Actions"
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Image tags in .env.example",
+      "fileMatch": ["^\\.env\\.example$"],
+      "matchStrings": [
+        "(?<depName>[a-z0-9][a-z0-9./_-]+):(?<currentValue>v?[0-9][A-Za-z0-9._-]*)"
+      ],
+      "datasourceTemplate": "docker"
+    }
+  ]
+}

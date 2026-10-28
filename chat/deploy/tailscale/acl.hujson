@@ -1,0 +1,42 @@
+// Example grants for the chat node. Merge them into the tailnet you already have.
+// Do not replace a policy that also covers your other machines.
+// Tag the messenger node tag:messenger (tagged auth key, not reusable).
+//
+// Members can open the chat and Element Web.
+// Call ports are listed so the optional calls profile does not need a second edit.
+// Those ports listen only when ENABLE_CALLS=true, and only on the Tailscale address.
+// Admins can SSH. Grafana is on tcp/443 with the chat and asks for the admin password.
+{
+  "tagOwners": {
+    "tag:messenger": ["autogroup:admin"],
+  },
+
+  "grants": [
+    {
+      "src": ["autogroup:member"],
+      "dst": ["tag:messenger"],
+      "ip": [
+        "tcp:443",
+        "tcp:8443",
+        "tcp:8444",
+        "tcp:7881",
+        "udp:7881",
+        "udp:50000-50100",
+      ],
+    },
+    {
+      "src": ["autogroup:admin"],
+      "dst": ["tag:messenger"],
+      "ip": ["*"],
+    },
+  ],
+
+  "ssh": [
+    {
+      "action": "accept",
+      "src": ["autogroup:admin"],
+      "dst": ["tag:messenger"],
+      "users": ["autogroup:nonroot", "root"],
+    },
+  ],
+}

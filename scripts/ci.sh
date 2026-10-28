@@ -8,7 +8,7 @@ python3 scripts/discover.py --self-test
 
 python3 - <<'PY'
 from pathlib import Path
-env = Path(".env.example").read_text(encoding="utf-8")
+env = Path("monitoring/.env.example").read_text(encoding="utf-8")
 docs = Path("docs/services.md").read_text(encoding="utf-8")
 missing = []
 for line in env.splitlines():
@@ -31,44 +31,48 @@ while IFS= read -r line; do
   key=${line%%=*}
   value=${line#*=}
   export "$key=$value"
-done < .env.example
+done < monitoring/.env.example
 set +a
 
 rendered=$(mktemp)
-docker compose --env-file .env.example config --format json > "$rendered"
+docker compose --env-file monitoring/.env.example -f monitoring/compose.yml config --format json > "$rendered"
 python3 scripts/policy.py < "$rendered"
 rm -f "$rendered"
+
+for project in commands avtobot; do
+  docker compose -f "$project/compose.yml" config --quiet
+done
 
 sd=$(mktemp -d)
 printf '[]\n' > "$sd/probes.json"
 printf '[]\n' > "$sd/metrics.json"
 docker run --rm \
-  -v "$root/platform/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro" \
-  -v "$root/platform/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro" \
+  -v "$root/monitoring/platform/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro" \
+  -v "$root/monitoring/platform/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro" \
   -v "$sd:/etc/prometheus/file_sd:ro" \
   --entrypoint promtool \
   prom/prometheus:v3.4.0 \
   check config /etc/prometheus/prometheus.yml
 docker run --rm \
-  -v "$root/platform/prometheus:/work" \
+  -v "$root/monitoring/platform/prometheus:/work" \
   -w /work \
   --entrypoint promtool \
   prom/prometheus:v3.4.0 \
   test rules alerts_test.yml
 
 docker run --rm \
-  -v "$root/platform/loki/loki.yml:/etc/loki/loki.yml:ro" \
+  -v "$root/monitoring/platform/loki/loki.yml:/etc/loki/loki.yml:ro" \
   grafana/loki:3.4.2 \
   -verify-config -config.file=/etc/loki/loki.yml
 
 docker run --rm \
-  -v "$root/platform/alloy/config.alloy:/etc/alloy/config.alloy:ro" \
+  -v "$root/monitoring/platform/alloy/config.alloy:/etc/alloy/config.alloy:ro" \
   grafana/alloy:v1.8.1 \
   fmt --test /etc/alloy/config.alloy
 
 am=$(mktemp -d)
-sed 's/__TELEGRAM_CHAT_ID__/1/' platform/alertmanager/alertmanager.yml.tmpl > "$am/alertmanager.yml"
-cp platform/alertmanager/telegram.tmpl "$am/telegram.tmpl"
+sed 's/__TELEGRAM_CHAT_ID__/1/' monitoring/platform/alertmanager/alertmanager.yml.tmpl > "$am/alertmanager.yml"
+cp monitoring/platform/alertmanager/telegram.tmpl "$am/telegram.tmpl"
 printf '0\n' > "$am/telegram_token"
 docker run --rm \
   -v "$am/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro" \
@@ -82,7 +86,7 @@ docker run --rm \
   -v "$root:/work" \
   -w /work \
   python:3.12-alpine \
-  sh -c 'pip install -q yamllint==1.35.1 && yamllint -c .yamllint.yml compose.yml runner/compose.yml platform .github'
+  sh -c 'pip install -q yamllint==1.35.1 && yamllint -c .yamllint.yml monitoring/compose.yml monitoring/platform commands/compose.yml avtobot/compose.yml runner/compose.yml .github'
 
 docker run --rm \
   -v "$root:/work" \

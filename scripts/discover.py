@@ -31,9 +31,10 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-INVENTORY = ROOT / "platform" / "services.json"
-STATE_PATH = ROOT / "runtime" / "discover-state.json"
-OUT_DIR = ROOT / "runtime" / "file_sd"
+STACK = ROOT / "monitoring"
+INVENTORY = STACK / "platform" / "services.json"
+STATE_PATH = STACK / "runtime" / "discover-state.json"
+OUT_DIR = STACK / "runtime" / "file_sd"
 REMEMBER_S = 6 * 3600
 NETWORK = "monitoring"
 COMPOSE_PROJECT = "com.docker.compose.project"

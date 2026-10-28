@@ -1,0 +1,10 @@
+secrets
+bin
+chrome-profile
+history.sqlite
+offset
+systemd
+__pycache__
+*.pyc
+selftest.py
+avtobot.service

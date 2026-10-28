@@ -1,0 +1,116 @@
+# Core chat. Published ports are loopback only. Tailscale serve is the door.
+name: svoi
+
+services:
+  postgres:
+    image: ${POSTGRES_IMAGE}
+    environment:
+      TZ: ${TZ}
+      POSTGRES_USER: synapse
+      POSTGRES_DB: synapse
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --auth-local=scram-sha-256 --encoding=UTF8 --locale=C"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    secrets:
+      - postgres_password
+    networks:
+      - data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U synapse -d synapse"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging: &jsonlog
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # The image drops to uid 991 and does not chown /data in run mode.
+  synapse-data-init:
+    image: ${ALPINE_IMAGE}
+    user: "0:0"
+    network_mode: none
+    volumes:
+      - synapse-data:/data
+    command: ["chown", "991:991", "/data"]
+    restart: "no"
+
+  synapse:
+    image: ${SYNAPSE_IMAGE}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      synapse-data-init:
+        condition: service_completed_successfully
+    environment:
+      TZ: ${TZ}
+    volumes:
+      - synapse-data:/data
+      - ./rendered/homeserver.yaml:/data/homeserver.yaml:ro
+      - ./config/log.config:/data/log.config:ro
+    ports:
+      - "127.0.0.1:8008:8008"
+    networks:
+      - edge
+      - data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          python3 -c 'import urllib.request as u;u.urlopen("http://127.0.0.1:8008/health",timeout=5)'
+          || python -c 'import urllib.request as u;u.urlopen("http://127.0.0.1:8008/health",timeout=5)'
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    stop_grace_period: 60s
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging: *jsonlog
+    deploy:
+      resources:
+        limits:
+          memory: 1536M
+
+  element-web:
+    image: ${ELEMENT_WEB_IMAGE}
+    environment:
+      TZ: ${TZ}
+    volumes:
+      - ./rendered/element-config.json:/app/config.json:ro
+    ports:
+      - "127.0.0.1:8080:80"
+    networks:
+      - edge
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging: *jsonlog
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+networks:
+  edge:
+  data:
+    internal: true
+
+volumes:
+  postgres-data:
+  synapse-data:
+
+secrets:
+  postgres_password:
+    file: ../secrets/postgres_password

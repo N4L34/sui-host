@@ -1,0 +1,176 @@
+# Optional. Prometheus, logs, Grafana. Give the host 8 GB if you turn this on.
+services:
+  prometheus:
+    image: ${PROMETHEUS_IMAGE}
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+      - --web.listen-address=:9090
+    volumes:
+      - ./observe/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observe/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prom-data:/prometheus
+    ports:
+      - "127.0.0.1:9091:9090"
+    networks:
+      - edge
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
+  alertmanager:
+    image: ${ALERTMANAGER_IMAGE}
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    volumes:
+      - ./rendered/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alert-data:/alertmanager
+    networks:
+      - edge
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
+  blackbox:
+    image: ${BLACKBOX_IMAGE}
+    command:
+      - --config.file=/etc/blackbox/blackbox.yml
+    volumes:
+      - ./observe/blackbox/blackbox.yml:/etc/blackbox/blackbox.yml:ro
+    networks:
+      - edge
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
+  node-exporter:
+    image: ${NODE_EXPORTER_IMAGE}
+    command:
+      - --path.rootfs=/host
+      - --path.procfs=/host/proc
+      - --path.sysfs=/host/sys
+      - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|var/lib/docker/.+)($|/)
+      - --collector.textfile.directory=/textfile
+      - --web.listen-address=:9100
+    volumes:
+      - /:/host:ro,rslave
+      - ./rendered/textfile:/textfile:ro
+    networks:
+      - edge
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
+  cadvisor:
+    image: ${CADVISOR_IMAGE}
+    privileged: true
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      # Docker on this host stores images in containerd, not the old layerdb.
+      - /run/containerd/containerd.sock:/run/containerd/containerd.sock
+    networks:
+      - edge
+    restart: unless-stopped
+
+  loki:
+    image: ${LOKI_IMAGE}
+    command: ["-config.file=/etc/loki/loki.yml"]
+    volumes:
+      - ./observe/loki/loki.yml:/etc/loki/loki.yml:ro
+      - loki-data:/loki
+    networks:
+      - edge
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
+  alloy:
+    image: ${ALLOY_IMAGE}
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy
+      - /etc/alloy/config.alloy
+    volumes:
+      - ./observe/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - alloy-data:/var/lib/alloy
+    networks:
+      - edge
+    restart: unless-stopped
+
+  # Reads Postgres on the internal data network. The port stays off the host.
+  # Compose secret mode is ignored outside Swarm, and the image user cannot
+  # read a 0600 secret. Root here stays inside this container: no socket, no
+  # host mounts, no-new-privileges.
+  postgres-exporter:
+    image: ${POSTGRES_EXPORTER_IMAGE}
+    user: "0:0"
+    environment:
+      DATA_SOURCE_URI: postgres:5432/synapse?sslmode=disable
+      DATA_SOURCE_USER: synapse
+      DATA_SOURCE_PASS_FILE: /run/secrets/postgres_password
+    secrets:
+      - postgres_password
+    networks:
+      - edge
+      - data
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
+  grafana:
+    image: ${GRAFANA_IMAGE}
+    # The image user is 472 and cannot read a 0600 secret. Root only copies
+    # the password into a 0400 file, then the process continues as grafana.
+    user: "0:0"
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -eu
+        umask 077
+        rm -f /tmp/grafana-admin-password
+        tr -d '[:space:]' < /run/secrets/grafana_admin_password > /tmp/grafana-admin-password
+        chown 472:472 /tmp/grafana-admin-password
+        chmod 400 /tmp/grafana-admin-password
+        exec su -s /bin/sh grafana -c 'export GF_SECURITY_ADMIN_PASSWORD="$$(tr -d "[:space:]" < /tmp/grafana-admin-password)"; exec /run.sh'
+    environment:
+      TZ: ${TZ}
+      GF_SECURITY_ADMIN_USER: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_SERVER_ROOT_URL: https://${MATRIX_SERVER_NAME}/
+      GF_SERVER_ENABLE_GZIP: "true"
+    secrets:
+      - grafana_admin_password
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./observe/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observe/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "127.0.0.1:3000:3000"
+    networks:
+      - edge
+    depends_on:
+      - prometheus
+      - loki
+    restart: unless-stopped
+
+secrets:
+  grafana_admin_password:
+    file: ../secrets/grafana_admin_password
+
+volumes:
+  prom-data:
+  alert-data:
+  loki-data:
+  alloy-data:
+  grafana-data:

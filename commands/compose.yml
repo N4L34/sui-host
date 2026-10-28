@@ -1,0 +1,87 @@
+name: commands
+
+x-log: &jsonlog
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  commands:
+    build: .
+    image: commands:2026.10.28
+    pull_policy: missing
+    user: "1000:1000"
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      TZ: Europe/Moscow
+      PYTHONUNBUFFERED: "1"
+      HOMESERVER_URL: http://synapse:8008
+      TELEGRAM_API_IP: 149.154.167.220
+      MATRIX_SERVER_NAME: sui.example.com
+    volumes:
+      - ./runtime.env:/app/.env:ro
+      - /home/sui/commands/state:/app/deploy/rendered
+      - /home/sui/tailnet-messenger/secrets/telegram_bot_token:/app/secrets/telegram_bot_token:ro
+      - /home/sui/tailnet-messenger/secrets/telegram_chat_id:/app/secrets/telegram_chat_id:ro
+      - /home/sui/tailnet-messenger/secrets/registration_shared_secret:/app/secrets/registration_shared_secret:ro
+      - /home/sui/tailnet-messenger/secrets/svoibot_password:/app/secrets/svoibot_password:ro
+      - /home/sui/tailnet-messenger/secrets/svoibot_access_token:/app/secrets/svoibot_access_token
+    networks:
+      - monitoring
+    memswap_limit: 128M
+    logging: *jsonlog
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    labels:
+      monitoring.project: commands
+      monitoring.service: commands
+      monitoring.probe: http://commands:8080/health
+      monitoring.name: Команды
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  proxy:
+    image: commands:2026.10.28
+    pull_policy: missing
+    network_mode: "service:commands"
+    depends_on:
+      commands:
+        condition: service_started
+    user: "1000:1000"
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    command: ["/usr/local/bin/xray", "run", "-c", "/secrets/xray.json"]
+    volumes:
+      - /home/sui/avtobot/bin/xray:/usr/local/bin/xray:ro
+      - /home/sui/avtobot/secrets/xray.json:/secrets/xray.json:ro
+    memswap_limit: 128M
+    logging: *jsonlog
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+networks:
+  monitoring:
+    external: true
+    name: monitoring
