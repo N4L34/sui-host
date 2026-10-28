@@ -301,7 +301,7 @@
       "title": "Synapse",
       "datasource": "Prometheus",
       "gridPos": { "h": 4, "w": 4, "x": 0, "y": 50 },
-      "targets": [{ "expr": "up{job=\"sui-metrics\",service=\"synapse\"}", "refId": "A" }],
+      "targets": [{ "expr": "up{job=~\"metrics|sui-metrics\",service=\"synapse\"}", "refId": "A" }],
       "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
       "fieldConfig": {
         "defaults": {
@@ -318,7 +318,7 @@
       "title": "Пробы чата",
       "datasource": "Prometheus",
       "gridPos": { "h": 4, "w": 4, "x": 4, "y": 50 },
-      "targets": [{ "expr": "min(probe_success{job=\"sui-probe\",service=\"synapse\"})", "refId": "A" }],
+      "targets": [{ "expr": "min(probe_success{job=~\"probe|sui-probe\",service=\"synapse\"})", "refId": "A" }],
       "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
       "fieldConfig": {
         "defaults": {
@@ -377,7 +377,7 @@
       "title": "Память Synapse",
       "datasource": "Prometheus",
       "gridPos": { "h": 4, "w": 4, "x": 20, "y": 50 },
-      "targets": [{ "expr": "process_resident_memory_bytes{job=\"sui-metrics\",service=\"synapse\"}", "refId": "A" }],
+      "targets": [{ "expr": "process_resident_memory_bytes{job=~\"metrics|sui-metrics\",service=\"synapse\"}", "refId": "A" }],
       "options": { "colorMode": "none", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
       "fieldConfig": { "defaults": { "unit": "bytes" } }
     },
@@ -434,7 +434,7 @@
       "title": "LiveKit",
       "datasource": "Prometheus",
       "gridPos": { "h": 4, "w": 4, "x": 0, "y": 70 },
-      "targets": [{ "expr": "up{job=\"sui-metrics\",service=\"livekit\"}", "refId": "A" }],
+      "targets": [{ "expr": "up{job=~\"metrics|sui-metrics\",service=\"livekit\"}", "refId": "A" }],
       "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
       "fieldConfig": {
         "defaults": {

@@ -1,7 +1,7 @@
 {
   "services": [
     {
-      "match": "svoi-synapse-1",
+      "match": "chat-synapse-1",
       "service": "synapse",
       "dns": "synapse",
       "name": "Чат",
@@ -16,14 +16,14 @@
       "metrics_path": "/_synapse/metrics"
     },
     {
-      "match": "svoi-element-web-1",
+      "match": "chat-element-web-1",
       "service": "element-web",
       "dns": "element-web",
       "name": "Element",
       "probes": ["http://element-web:80/"]
     },
     {
-      "match": "svoi-livekit-1",
+      "match": "chat-livekit-1",
       "service": "livekit",
       "dns": "livekit",
       "name": "Звонки",
@@ -32,14 +32,14 @@
       "metrics_path": "/metrics"
     },
     {
-      "match": "svoi-lk-jwt-1",
+      "match": "chat-lk-jwt-1",
       "service": "lk-jwt",
       "dns": "lk-jwt",
       "name": "Токены звонка",
       "probes": ["http://lk-jwt:8080/healthz"]
     },
     {
-      "match": "svoi-calls-proxy-1",
+      "match": "chat-calls-proxy-1",
       "service": "calls-proxy",
       "dns": "calls-proxy",
       "name": "Прокси звонков",

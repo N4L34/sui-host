@@ -1,6 +1,5 @@
-# Platform for the sui appliance: metrics, logs, alerts.
-# Chat is a separate compose project. It joins the network below.
-name: sui
+# Metrics, logs, and alerts. Chat is a separate Compose project.
+name: monitoring
 
 x-log: &jsonlog
   driver: json-file
@@ -24,7 +23,7 @@ services:
     ports:
       - "127.0.0.1:9091:9090"
     networks:
-      - sui
+      - monitoring
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -47,7 +46,7 @@ services:
       - ./runtime/telegram_token:/etc/alertmanager/telegram_token:ro
       - alert-data:/alertmanager
     networks:
-      - sui
+      - monitoring
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -64,7 +63,7 @@ services:
     volumes:
       - ./platform/blackbox/blackbox.yml:/etc/blackbox/blackbox.yml:ro
     networks:
-      - sui
+      - monitoring
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -87,7 +86,7 @@ services:
       - /:/host:ro,rslave
       - ${TEXTFILE}:/textfile:ro
     networks:
-      - sui
+      - monitoring
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -107,7 +106,7 @@ services:
       - /var/lib/docker:/var/lib/docker:ro
       - /run/containerd/containerd.sock:/run/containerd/containerd.sock
     networks:
-      - sui
+      - monitoring
     restart: unless-stopped
     logging: *jsonlog
     deploy:
@@ -122,7 +121,7 @@ services:
       - ./platform/loki/loki.yml:/etc/loki/loki.yml:ro
       - loki-data:/loki
     networks:
-      - sui
+      - monitoring
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -144,7 +143,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - alloy-data:/var/lib/alloy
     networks:
-      - sui
+      - monitoring
     restart: unless-stopped
     logging: *jsonlog
     deploy:
@@ -162,14 +161,14 @@ services:
     volumes:
       - ${CHAT_SECRETS}/postgres_password:/run/secrets/postgres_password:ro
     networks:
-      sui:
+      monitoring:
       chat_data:
     labels:
-      sui.service: postgres
-      sui.dns: postgres-exporter
-      sui.metrics.port: "9187"
-      sui.metrics.path: /metrics
-      sui.name: База чата
+      monitoring.service: postgres
+      monitoring.dns: postgres-exporter
+      monitoring.metrics.port: "9187"
+      monitoring.metrics.path: /metrics
+      monitoring.name: База чата
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -210,15 +209,15 @@ services:
     ports:
       - "127.0.0.1:3000:3000"
     networks:
-      - sui
+      - monitoring
     labels:
-      sui.service: grafana
-      sui.dns: grafana
-      sui.probe: http://grafana:3000/api/health
-      sui.alert: page
-      sui.name: Страницы
-      sui.summary: "Страницы мониторинга не открываются."
-      sui.resolved: "Страницы мониторинга снова открываются."
+      monitoring.service: grafana
+      monitoring.dns: grafana
+      monitoring.probe: http://grafana:3000/api/health
+      monitoring.alert: page
+      monitoring.name: Страницы
+      monitoring.summary: "Страницы мониторинга не открываются."
+      monitoring.resolved: "Страницы мониторинга снова открываются."
     depends_on:
       - prometheus
       - loki
@@ -230,12 +229,12 @@ services:
           memory: 512M
 
 networks:
-  sui:
+  monitoring:
     external: true
-    name: sui
+    name: monitoring
   chat_data:
     external: true
-    name: svoi_data
+    name: chat_data
 
 volumes:
   prom-data:

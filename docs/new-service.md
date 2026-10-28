@@ -2,9 +2,9 @@
 
 Закон запуска записан в `AGENTS.md`: свой каталог, свой проект Compose, процесс только в контейнере. Этот файл даёт каркас, метки и пример. Если способы запуска расходятся, побеждает `AGENTS.md`.
 
-Новый процесс на узле получает свой каталог в `/home/sui` и свой проект Compose. В проект чата его не добавляют. Сеть `svoi_data` и том Postgres чата ему не отдают. Долгоживущий `docker run` вне Compose не оставляют.
+Новый процесс на узле получает свой каталог в `/home/sui` и свой проект Compose. В проект чата его не добавляют. Сеть `chat_data` и том Postgres чата ему не отдают. Долгоживущий `docker run` вне Compose не оставляют.
 
-Платформа уже запущена службой `sui-platform.service`. В новый проект её не копируют.
+Мониторинг уже запущен службой `monitoring.service` из `/opt/monitoring`. В новый проект его не копируют.
 
 ## Каркас контейнера
 
@@ -17,7 +17,7 @@
 - `TZ` из окружения, если процессу нужно московское время;
 - секрет файлом, не строкой в compose и не в git;
 - порт на хост только `127.0.0.1:хост:контейнер`;
-- сеть `sui` с `external: true` и `name: sui`;
+- сеть `monitoring` с `external: true` и `name: monitoring`;
 - `healthcheck`, если есть локальный адрес здоровья.
 
 На `0.0.0.0` и на порт `8448` сервис не сажают. `network_mode: host` не используют. Исключение одно: медиа LiveKit уже слушает адрес Tailscale.
@@ -28,25 +28,25 @@
 
 Память, CPU, перезапуски и журнал появляются сразу: cAdvisor и Alloy читают сокет Docker всего узла. Отдельный дашборд на контейнер не заводят. Общий список уже есть на `https://sui.example.com/`.
 
-Дальше метки. Таймер `sui-discover.timer` раз в 15 секунд читает их и пишет цели Prometheus. Для нового сервиса `prometheus.yml` не правят.
+Дальше метки. Таймер `monitoring-discover.timer` раз в 15 секунд читает их и пишет цели Prometheus. Для нового сервиса `prometheus.yml` не правят.
 
 | Метка | Назначение |
 | --- | --- |
-| `sui.service` | имя серии, латиницей |
-| `sui.dns` | имя на сети `sui`, если оно отличается от имени сервиса |
-| `sui.probe` | URL HTTP через запятую, например `http://billing:8080/health` |
-| `sui.metrics.port` | порт `/metrics` |
-| `sui.metrics.path` | путь, если он отличается от `/metrics` |
-| `sui.alert` | `page`, если падение проверки должно уйти в Telegram |
-| `sui.name` | имя сервиса в тексте алерта |
-| `sui.summary` | текст, когда проверка упала |
-| `sui.resolved` | текст, когда проверка снова успешна |
+| `monitoring.service` | имя серии, латиницей |
+| `monitoring.dns` | имя на сети `monitoring`, если оно отличается от имени сервиса |
+| `monitoring.probe` | URL HTTP через запятую, например `http://billing:8080/health` |
+| `monitoring.metrics.port` | порт `/metrics` |
+| `monitoring.metrics.path` | путь, если он отличается от `/metrics` |
+| `monitoring.alert` | `page`, если падение проверки должно уйти в Telegram |
+| `monitoring.name` | имя сервиса в тексте алерта |
+| `monitoring.summary` | текст, когда проверка упала |
+| `monitoring.resolved` | текст, когда проверка снова успешна |
 
-Без `sui.alert=page` проверка и метрики есть, page-алерта нет. Текст алерта пишут по-русски и без имён контейнеров.
+Без `monitoring.alert=page` проверка и метрики есть, page-алерта нет. Текст алерта пишут по-русски и без имён контейнеров.
 
 Метка попадает на контейнер при создании. У уже запущенного контейнера Docker её не меняет. После правки меток контейнер пересоздают. LiveKit при активном звонке не пересоздают.
 
-Если контейнер с `sui.alert=page` удалён, проверка ещё 6 часов остаётся и падает. Затем запись снимается.
+Если контейнер с `monitoring.alert=page` удалён, проверка ещё 6 часов остаётся и падает. Затем запись снимается.
 
 Пока у контейнеров чата нет меток, их цели записаны в `platform/services.json`. Метка на контейнере перекрывает эту запись.
 
@@ -66,33 +66,33 @@ services:
     ports:
       - "127.0.0.1:8090:8080"
     networks:
-      - sui
+      - monitoring
     labels:
-      sui.service: billing
-      sui.probe: http://billing:8080/health
-      sui.metrics.port: "8080"
-      sui.metrics.path: /metrics
-      sui.alert: page
-      sui.name: Оплата
-      sui.summary: "Оплата не отвечает."
-      sui.resolved: "Оплата снова отвечает."
+      monitoring.service: billing
+      monitoring.probe: http://billing:8080/health
+      monitoring.metrics.port: "8080"
+      monitoring.metrics.path: /metrics
+      monitoring.alert: page
+      monitoring.name: Оплата
+      monitoring.summary: "Оплата не отвечает."
+      monitoring.resolved: "Оплата снова отвечает."
     deploy:
       resources:
         limits:
           memory: 256M
 
 networks:
-  sui:
+  monitoring:
     external: true
-    name: sui
+    name: monitoring
 ```
 
-Имя `billing` в URL проверки — имя сервиса Compose на сети `sui`. Оно должно резолвиться из контейнера `blackbox`.
+Имя `billing` в URL проверки — имя сервиса Compose на сети `monitoring`. Оно должно резолвиться из контейнера `blackbox`.
 
 Юнит systemd для такого проекта: `Type=oneshot`, `RemainAfterExit=yes`, `ExecStart=docker compose up -d`, `ExecStop=docker compose stop`. В `ExecStop` не ставят `down`: команда удаляет контейнеры.
 
 ## Чат
 
-Чат остаётся проектом `svoi`. Изменение самого чата вносят в `tailnet-messenger`. На узле `deploy/compose.platform-net.yml` подключается в `make`, если файл лежит на месте, и присоединяет контейнеры чата к сети `sui`. Во время звонка `make up` не запускают: Compose пересоздаст LiveKit.
+Чат лежит в `/home/sui/tailnet-messenger`. Проект Compose называется `chat`: это задаёт `deploy/compose.platform-net.yml`, и `make` подключает файл, если он лежит на месте. Служба systemd по-прежнему `svoi.service`. Во время звонка `make up` не запускают: он вызывает `render_config.py` и пересоздаёт LiveKit.
 
 `SVOI_OBSERVE` у `svoi.service` равен `false`. Иначе следующий запуск чата поднимет второй Grafana и второй Prometheus на тех же портах.

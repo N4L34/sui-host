@@ -9,8 +9,8 @@
 | `docker.service` | контейнеры, включена при загрузке |
 | `tailscaled.service` | адрес `100.64.0.10` и Serve |
 | `svoi.service` | Compose чата из `/home/sui/tailnet-messenger`, без стека наблюдения |
-| `sui-platform.service` | метрики, журнал и алерты из `/home/sui/sui-host` |
-| `sui-discover.timer` | раз в 15 секунд обновляет цели Prometheus по меткам |
+| `monitoring.service` | метрики, журнал и алерты из `/opt/monitoring` |
+| `monitoring-discover.timer` | раз в 15 секунд обновляет цели Prometheus по меткам |
 | `svoi-backup.timer` | резервная копия чата раз в час |
 | `svoi-edge-probe.timer` | раз в минуту проверяет чат и звонки через Tailscale |
 | `svoi-telegram-bot.service` | команды управления людьми и комнатами |
@@ -25,21 +25,21 @@
 
 ## Чат
 
-Проект Compose `svoi`. Каталог `/home/sui/tailnet-messenger`. Код в `N4L34/tailnet-messenger`.
+Проект Compose `chat`. Каталог `/home/sui/tailnet-messenger`. Код в `N4L34/tailnet-messenger`. Имя проекта задаёт префикс контейнеров. Служба `svoi.service` называется по-старому: её остановка вызывает `make down`.
 
 | Контейнер | Образ | Публикация |
 | --- | --- | --- |
-| `svoi-synapse-1` | `ghcr.io/element-hq/synapse:v1.163.0` | `127.0.0.1:8008` |
-| `svoi-postgres-1` | `postgres:17-alpine` | только сеть `data` |
-| `svoi-element-web-1` | `ghcr.io/element-hq/element-web:v1.12.32` | `127.0.0.1:8080` |
-| `svoi-livekit-1` | `livekit/livekit-server:v1.13.10` | `127.0.0.1:7880`, медиа на `100.64.0.10` |
-| `svoi-lk-jwt-1` | `ghcr.io/element-hq/lk-jwt-service:latest` | токены звонка, сеть `edge` |
-| `svoi-calls-proxy-1` | `caddy:2.10-alpine` | `127.0.0.1:7882`, Serve `:8444` |
-| `svoi-call-dial-1` | `caddy:2.10-alpine` | внутренний набор для сервиса токенов, порта на хосте нет |
+| `chat-synapse-1` | `ghcr.io/element-hq/synapse:v1.163.0` | `127.0.0.1:8008` |
+| `chat-postgres-1` | `postgres:17-alpine` | только сеть `chat_data` |
+| `chat-element-web-1` | `ghcr.io/element-hq/element-web:v1.12.32` | `127.0.0.1:8080` |
+| `chat-livekit-1` | `livekit/livekit-server:v1.13.10` | `127.0.0.1:7880`, медиа на `100.64.0.10` |
+| `chat-lk-jwt-1` | `ghcr.io/element-hq/lk-jwt-service:latest` | токены звонка, сеть `chat_edge` |
+| `chat-calls-proxy-1` | `caddy:2.10-alpine` | `127.0.0.1:7882`, Serve `:8444` |
+| `chat-call-dial-1` | `caddy:2.10-alpine` | внутренний набор для сервиса токенов, порта на хосте нет |
 
 `synapse-data-init` в списке процессов не остаётся. Он выставляет права на каталог данных и завершается.
 
-Тома `svoi_synapse-data` и `svoi_postgres-data` не удаляют. В первом лежит ключ подписи сервера.
+Тома на диске остаются `svoi_synapse-data` и `svoi_postgres-data`. В первом лежит ключ подписи сервера. Каталоги не переименовывают и не копируют.
 
 LiveKit оставляют на `v1.13.10`. Образ `v1.9.0` не обслуживал `/rtc/v1`, и звонок обрывался примерно через 15 секунд. На текущем образе `/rtc/v1` отвечает 404, а `/rtc/v1/validate` без токена отвечает 401. Для `v1.13.10` это штатный ответ. `use_ice_lite: true` во время тех обрывов уже был включён, его не снимают.
 
@@ -49,21 +49,21 @@ LiveKit оставляют на `v1.13.10`. Образ `v1.9.0` не обслу�
 
 ## Платформа
 
-Проект Compose `sui`, каталог `/home/sui/sui-host`, служба `sui-platform.service`. Цели Prometheus обновляет `sui-discover.timer`. История графиков и журнала лежит во внешних томах `svoi_prom-data`, `svoi_grafana-data`, `svoi_loki-data`, `svoi_alert-data`, `svoi_alloy-data`.
+Проект Compose `monitoring`, каталог `/opt/monitoring`, служба `monitoring.service`. Цели Prometheus обновляет `monitoring-discover.timer`. История графиков и журнала лежит во внешних томах `svoi_prom-data`, `svoi_grafana-data`, `svoi_loki-data`, `svoi_alert-data`, `svoi_alloy-data`. Имена этих томов оставлены: внутри история, и новый пустой том её не заменит.
 
 | Контейнер | Образ | Роль |
 | --- | --- | --- |
-| `sui-grafana-1` | `grafana/grafana:12.0.2` | интерфейс, `127.0.0.1:3000` |
-| `sui-prometheus-1` | `prom/prometheus:v3.4.0` | метрики, `127.0.0.1:9091` |
-| `sui-alertmanager-1` | `prom/alertmanager:v0.28.0` | page-алерты |
-| `sui-loki-1` | `grafana/loki:3.4.2` | журнал |
-| `sui-alloy-1` | `grafana/alloy:v1.8.1` | сбор логов контейнеров |
-| `sui-cadvisor-1` | `ghcr.io/google/cadvisor:v0.60.6` | память, CPU, перезапуски |
-| `sui-node-exporter-1` | `prom/node-exporter:v1.9.0` | диск и узел |
-| `sui-postgres-exporter-1` | `prometheuscommunity/postgres-exporter:v0.17.1` | база чата |
-| `sui-blackbox-1` | `prom/blackbox-exporter:v0.25.0` | HTTP-проверки в сети `sui` |
+| `monitoring-grafana-1` | `grafana/grafana:12.0.2` | интерфейс, `127.0.0.1:3000` |
+| `monitoring-prometheus-1` | `prom/prometheus:v3.4.0` | метрики, `127.0.0.1:9091` |
+| `monitoring-alertmanager-1` | `prom/alertmanager:v0.28.0` | page-алерты |
+| `monitoring-loki-1` | `grafana/loki:3.4.2` | журнал |
+| `monitoring-alloy-1` | `grafana/alloy:v1.8.1` | сбор логов контейнеров |
+| `monitoring-cadvisor-1` | `ghcr.io/google/cadvisor:v0.60.6` | память, CPU, перезапуски |
+| `monitoring-node-exporter-1` | `prom/node-exporter:v1.9.0` | диск и узел |
+| `monitoring-postgres-exporter-1` | `prometheuscommunity/postgres-exporter:v0.17.1` | база чата |
+| `monitoring-blackbox-1` | `prom/blackbox-exporter:v0.25.0` | HTTP-проверки в сети `monitoring` |
 
-Page-алерт уходит, когда чат не отвечает, сервис с `sui.alert=page` не отвечает, на диске свободно меньше 15%, локальная или внешняя копия старше 26 часов, ядро завершило процесс по памяти, по корню Serve открылся не Matrix, звонки не готовы, остановилась проверка края или платформа перестала видеть свои компоненты. Повтор раз в 4 часа. Обрыв одного звонка, строка в Loki и короткий всплеск CPU в этот канал не входят. Проверка без `page` остаётся на графике.
+Page-алерт уходит, когда чат не отвечает, сервис с `monitoring.alert=page` не отвечает, на диске свободно меньше 15%, локальная или внешняя копия старше 26 часов, ядро завершило процесс по памяти, по корню Serve открылся не Matrix, звонки не готовы, остановилась проверка края или платформа перестала видеть свои компоненты. Повтор раз в 4 часа. Обрыв одного звонка, строка в Loki и короткий всплеск CPU в этот канал не входят. Проверка без `page` остаётся на графике.
 
 Сводка утром в 08:00 Europe/Moscow, недельная в воскресенье в 11:00 Europe/Moscow. В тексте нет имён контейнеров.
 

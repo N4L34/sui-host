@@ -1,8 +1,8 @@
 groups:
-  - name: sui
+  - name: node
     rules:
       - alert: HomeserverDown
-        expr: probe_success{job="sui-probe", service="synapse"} == 0
+        expr: probe_success{job="probe", service="synapse"} == 0
         for: 2m
         labels:
           severity: page
@@ -11,7 +11,7 @@ groups:
           resolved: "Чат снова отвечает."
 
       - alert: ProbeListEmpty
-        expr: absent(probe_success{job="sui-probe", service="synapse"})
+        expr: absent(probe_success{job="probe", service="synapse"})
         for: 5m
         labels:
           severity: page
@@ -20,26 +20,26 @@ groups:
           resolved: "Проверка чата снова в мониторинге."
 
       - alert: ServiceDown
-        expr: probe_success{job="sui-probe", sui_alert="page", service!="synapse"} == 0
+        expr: probe_success{job="probe", monitoring_alert="page", service!="synapse"} == 0
         for: 2m
         labels:
           severity: page
         annotations:
-          summary: "{{ if $labels.sui_summary }}{{ $labels.sui_summary }}{{ else }}{{ $labels.sui_name }} не отвечает.{{ end }}"
-          resolved: "{{ if $labels.sui_resolved }}{{ $labels.sui_resolved }}{{ else }}{{ $labels.sui_name }} снова отвечает.{{ end }}"
+          summary: "{{ if $labels.monitoring_summary }}{{ $labels.monitoring_summary }}{{ else }}{{ $labels.monitoring_name }} не отвечает.{{ end }}"
+          resolved: "{{ if $labels.monitoring_resolved }}{{ $labels.monitoring_resolved }}{{ else }}{{ $labels.monitoring_name }} снова отвечает.{{ end }}"
 
       - alert: ServiceRestarting
-        expr: changes(container_start_time_seconds{container_label_sui_alert="page"}[15m]) > 3
+        expr: changes(container_start_time_seconds{container_label_monitoring_alert="page"}[15m]) > 3
         for: 2m
         labels:
           severity: page
         annotations:
           summary: >-
-            {{ if $labels.container_label_sui_name }}{{ $labels.container_label_sui_name }}
+            {{ if $labels.container_label_monitoring_name }}{{ $labels.container_label_monitoring_name }}
             несколько раз перезапустился.{{ else }}Один из сервисов несколько раз
             перезапустился.{{ end }}
           resolved: >-
-            {{ if $labels.container_label_sui_name }}{{ $labels.container_label_sui_name }}
+            {{ if $labels.container_label_monitoring_name }}{{ $labels.container_label_monitoring_name }}
             больше не перезапускается.{{ else }}Перезапуски сервиса
             прекратились.{{ end }}
 

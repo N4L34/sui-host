@@ -25,13 +25,13 @@ Tailscale Serve на sui
 ## Слои
 
 1. Хост. Docker, Tailscale, systemd. Каталог `/home/sui`.
-2. Платформа. Проект Compose `sui` в `/home/sui/sui-host`: Prometheus, Grafana, Loki, Alloy, Alertmanager, cAdvisor, node-exporter, blackbox-exporter, postgres-exporter. Сеть Docker называется `sui`.
-3. Чат. Проект Compose `svoi` в `/home/sui/tailnet-messenger`: Synapse, Postgres, Element, звонки. К платформе он подключён сетью `sui` на тех же условиях, что и любой другой сервис. Сеть `data` с базой из проекта не отдают.
+2. Мониторинг. Проект Compose `monitoring` в `/opt/monitoring`: Prometheus, Grafana, Loki, Alloy, Alertmanager, cAdvisor, node-exporter, blackbox-exporter, postgres-exporter. Общая сеть Docker называется `monitoring`.
+3. Чат. Проект Compose `chat` в `/home/sui/tailnet-messenger`: Synapse, Postgres, Element, звонки. К мониторингу он подключён сетью `monitoring` на тех же условиях, что и любой другой сервис. Сеть `data` с базой из проекта не отдают.
 4. Прочие процессы узла. `avtobot` поднят systemd и в Docker не входит. Рядом локальный прокси слушает только `127.0.0.1:10818`. Его конфиг в git не копируют.
 
 Чат, платформа и `avtobot` не делят базу. Общие для них машина, Tailscale и выход к Telegram через адрес `149.154.167.220`: имя `api.telegram.org` с узла не резолвится.
 
-Postgres находится в сети `svoi_data` с `internal: true` и на хост не публикуется. Экспортёр метрик базы входит в `svoi_data` и в `sui`. Саму базу к `sui` не подключают, чтобы новый сервис не видел Postgres чата.
+Postgres находится в сети `chat_data` с `internal: true` и на хост не публикуется. Экспортёр метрик базы входит в `chat_data` и в `monitoring`. Саму базу к `monitoring` не подключают, чтобы новый сервис не видел Postgres чата. Тома базы и ключа подписи на диске по-прежнему называются `svoi_postgres-data` и `svoi_synapse-data`: это хранилище, его не переименовывают.
 
 Регистрация на Synapse закрыта. Слушателя федерации нет. Имя сервера Matrix фиксировано: `sui.example.com`.
 
@@ -43,9 +43,9 @@ Grafana открыта с корня `https://sui.example.com/`. Логин `adm
 
 cAdvisor и Alloy читают сокет Docker и забирают память, CPU, перезапуски и журнал любого контейнера на узле. Отдельный дашборд для этого не заводят.
 
-Сеть `sui` и метки контейнера добавляют HTTP-проверку, сбор `/metrics` и page-алерт, если стоит `sui.alert=page`. Список целей пишет `scripts/discover.py` раз в 15 секунд. Prometheus этот список только читает.
+Сеть `monitoring` и метки `monitoring.*` добавляют HTTP-проверку, сбор `/metrics` и page-алерт, если стоит `monitoring.alert=page`. Список целей пишет `scripts/discover.py` раз в 15 секунд. Prometheus этот список только читает.
 
-Без `sui.alert=page` упавшая проверка видна на графике и в Telegram не уходит. Диск, резервные копии, память узла, подмена адреса чата и готовность звонков описаны отдельными правилами и от нового сервиса не зависят.
+Без `monitoring.alert=page` упавшая проверка видна на графике и в Telegram не уходит. Диск, резервные копии, память узла, подмена адреса чата и готовность звонков описаны отдельными правилами и от нового сервиса не зависят.
 
 `avtobot` в эти графики не попадает: он не контейнер. Новый долгоживущий процесс на хосте оформляют контейнером.
 

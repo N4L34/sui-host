@@ -1,9 +1,0 @@
-[Unit]
-Description=Refresh Prometheus targets from Docker labels
-
-[Service]
-Type=oneshot
-User=sui
-SupplementaryGroups=docker
-WorkingDirectory=/home/sui/sui-host
-ExecStart=/usr/bin/python3 /home/sui/sui-host/scripts/discover.py

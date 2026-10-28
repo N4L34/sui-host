@@ -12,12 +12,12 @@
 
 ## Состав
 
-Проект Compose называется `sui`, каталог на узле `/home/sui/sui-host`, общая сеть Docker тоже называется `sui`.
+Каталог на узле `/opt/monitoring`. Проект Compose и общая сеть Docker называются `monitoring`. Чат — отдельный проект `chat` в `/home/sui/tailnet-messenger`.
 
 - `compose.yml` собирает Prometheus, Grafana, Loki, Alloy, Alertmanager, cAdvisor, node-exporter, blackbox-exporter и postgres-exporter.
 - `platform/` хранит конфиги и инвентарь целей, у которых ещё нет меток.
 - `scripts/discover.py` переносит метки контейнеров в file_sd Prometheus.
-- `systemd/` содержит `sui-platform.service` и `sui-discover.timer`.
+- `systemd/` содержит `monitoring.service` и `monitoring-discover.timer`.
 
 ## Документация
 

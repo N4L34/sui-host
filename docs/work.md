@@ -27,9 +27,9 @@ ssh -o 'ProxyCommand=/Applications/Tailscale.app/Contents/MacOS/Tailscale nc %h 
 
 `systemctl restart svoi.service` и `systemctl stop svoi.service` останавливают чат: `ExecStop` вызывает `make down`. Один контейнер перезапускают через `docker compose` из `/home/sui/tailnet-messenger`, тем же набором файлов, что у `make`. Флаг `--remove-orphans` не ставят.
 
-Платформу поднимает `sui-platform.service` из `/home/sui/sui-host`. Остановка платформы: `docker compose stop` в этом каталоге. `docker compose down` там не вызывают. У чата `SVOI_OBSERVE=false`. Иначе следующий запуск `svoi.service` поднимет второй Grafana. Флаг меняют в drop-in и ради этого `svoi.service` не перезапускают.
+Мониторинг поднимает `monitoring.service` из `/opt/monitoring`. Остановка: `docker compose stop` в этом каталоге. `docker compose down` там не вызывают. У чата `SVOI_OBSERVE=false`. Иначе следующий запуск `svoi.service` поднимет второй Grafana. Флаг меняют в drop-in и ради этого `svoi.service` не перезапускают.
 
-Пересоздание `svoi-livekit-1` рвёт текущий звонок. Полный `scripts/render_config.py` переписывает homeserver, Element, LiveKit и Caddy. На узле так не делают. Правят уже сгенерированный файл и перезапускают только контейнер, который его читает.
+Пересоздание `chat-livekit-1` рвёт текущий звонок. Полный `scripts/render_config.py` переписывает homeserver, Element, LiveKit и Caddy. На узле так не делают. Правят уже сгенерированный файл и перезапускают только контейнер, который его читает.
 
 `rsync` поверх файла, который уже примонтирован в контейнер, оставляет процесс на старом inode. Такой контейнер пересоздают точечно. LiveKit при активном звонке не трогают.
 

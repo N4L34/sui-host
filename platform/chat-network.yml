@@ -1,73 +1,88 @@
-# Installed on the appliance as
+# Host-only override. Installed as
 # /home/sui/tailnet-messenger/deploy/compose.platform-net.yml
-# scripts/lib.sh adds this file when it is present.
-# The next chat recreate then joins network sui. Do not apply it with make up
-# while a call is up: compose would recreate LiveKit.
+# scripts/lib.sh appends this file, so its top-level name wins.
+# Volumes keep their existing names: those directories hold the database
+# and the Matrix signing key.
+name: chat
+
 services:
   synapse:
     networks:
       edge:
       data:
-      sui:
+      monitoring:
         aliases: [synapse]
     labels:
-      sui.service: synapse
-      sui.dns: synapse
-      sui.probe: "http://synapse:8008/health,http://synapse:8008/_matrix/client/versions"
-      sui.metrics.port: "9090"
-      sui.metrics.path: /_synapse/metrics
-      sui.alert: page
-      sui.name: Чат
-      sui.summary: "Чат не отвечает уже больше 2 минут."
-      sui.resolved: "Чат снова отвечает."
+      monitoring.service: synapse
+      monitoring.dns: synapse
+      monitoring.probe: "http://synapse:8008/health,http://synapse:8008/_matrix/client/versions"
+      monitoring.metrics.port: "9090"
+      monitoring.metrics.path: /_synapse/metrics
+      monitoring.alert: page
+      monitoring.name: Чат
+      monitoring.summary: "Чат не отвечает уже больше 2 минут."
+      monitoring.resolved: "Чат снова отвечает."
 
   element-web:
     networks:
       edge:
-      sui:
+      monitoring:
         aliases: [element-web]
     labels:
-      sui.service: element-web
-      sui.dns: element-web
-      sui.probe: http://element-web:80/
-      sui.name: Element
+      monitoring.service: element-web
+      monitoring.dns: element-web
+      monitoring.probe: http://element-web:80/
+      monitoring.name: Element
 
   livekit:
     networks:
       edge:
-      sui:
+      monitoring:
         aliases: [livekit]
     labels:
-      sui.service: livekit
-      sui.dns: livekit
-      sui.probe: http://livekit:7880/
-      sui.metrics.port: "6789"
-      sui.metrics.path: /metrics
-      sui.name: Звонки
+      monitoring.service: livekit
+      monitoring.dns: livekit
+      monitoring.probe: http://livekit:7880/
+      monitoring.metrics.port: "6789"
+      monitoring.metrics.path: /metrics
+      monitoring.name: Звонки
 
   lk-jwt:
     networks:
       edge:
-      sui:
+      monitoring:
         aliases: [lk-jwt]
     labels:
-      sui.service: lk-jwt
-      sui.dns: lk-jwt
-      sui.probe: http://lk-jwt:8080/healthz
-      sui.name: Токены звонка
+      monitoring.service: lk-jwt
+      monitoring.dns: lk-jwt
+      monitoring.probe: http://lk-jwt:8080/healthz
+      monitoring.name: Токены звонка
 
   calls-proxy:
     networks:
       edge:
-      sui:
+      monitoring:
         aliases: [calls-proxy]
     labels:
-      sui.service: calls-proxy
-      sui.dns: calls-proxy
-      sui.probe: http://calls-proxy:80/
-      sui.name: Прокси звонков
+      monitoring.service: calls-proxy
+      monitoring.dns: calls-proxy
+      monitoring.probe: http://calls-proxy:80/
+      monitoring.name: Прокси звонков
 
 networks:
-  sui:
+  edge:
+    name: chat_edge
+  data:
+    name: chat_data
+    internal: true
+  monitoring:
     external: true
-    name: sui
+    name: monitoring
+
+volumes:
+  postgres-data:
+    external: true
+    name: svoi_postgres-data
+  synapse-data:
+    external: true
+    name: svoi_synapse-data

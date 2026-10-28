@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """Write Prometheus file_sd from Docker labels and platform/services.json.
 
-Labels on a container that sits on the docker network `sui`:
+Labels on a container that sits on the docker network `monitoring`:
 
-  sui.service        stable name
-  sui.dns            name Prometheus uses on that network
-  sui.probe          comma-separated HTTP URLs
-  sui.metrics.port   port to scrape
-  sui.metrics.path   default /metrics
-  sui.alert          page, if a failed probe should wake Telegram
-  sui.name           short name for friends
-  sui.summary        firing text
-  sui.resolved       resolved text
+  monitoring.service        stable name
+  monitoring.dns            name Prometheus uses on that network
+  monitoring.probe          comma-separated HTTP URLs
+  monitoring.metrics.port   port to scrape
+  monitoring.metrics.path   default /metrics
+  monitoring.alert          page, if a failed probe should wake Telegram
+  monitoring.name           short name for friends
+  monitoring.summary        firing text
+  monitoring.resolved       resolved text
 
 platform/services.json lists containers created before those labels existed.
 A label on the container wins. A page-worthy record stays for six hours after
@@ -31,7 +31,7 @@ INVENTORY = ROOT / "platform" / "services.json"
 STATE_PATH = ROOT / "runtime" / "discover-state.json"
 OUT_DIR = ROOT / "runtime" / "file_sd"
 REMEMBER_S = 6 * 3600
-NETWORK = "sui"
+NETWORK = "monitoring"
 
 
 def split_probes(value: str | None) -> list[str]:
@@ -72,8 +72,8 @@ def _looks_like_id(value: str) -> bool:
 
 
 def dns_name(container: dict, labels: dict, inv: dict, service: str) -> str:
-    if labels.get("sui.dns"):
-        return str(labels["sui.dns"])
+    if labels.get("monitoring.dns"):
+        return str(labels["monitoring.dns"])
     if inv.get("dns"):
         return str(inv["dns"])
     nets = (container.get("NetworkSettings") or {}).get("Networks") or {}
@@ -89,21 +89,21 @@ def record_from(container: dict, inv_by_name: dict) -> dict | None:
     name = container.get("Name", "").lstrip("/")
     labels = (container.get("Config") or {}).get("Labels") or {}
     inv = inv_by_name.get(name, {})
-    has_label = any(str(key).startswith("sui.") for key in labels)
+    has_label = any(str(key).startswith("monitoring.") for key in labels)
     if not has_label and not inv:
         return None
-    service = str(labels.get("sui.service") or inv.get("service") or "")
+    service = str(labels.get("monitoring.service") or inv.get("service") or "")
     if not service:
         return None
-    probes = split_probes(labels.get("sui.probe"))
+    probes = split_probes(labels.get("monitoring.probe"))
     if not probes:
         probes = split_probes(",".join(inv.get("probes") or []))
-    if "sui.alert" in labels:
-        alert = str(labels.get("sui.alert") or "")
+    if "monitoring.alert" in labels:
+        alert = str(labels.get("monitoring.alert") or "")
     else:
         alert = str(inv.get("alert") or "")
-    metrics_port = labels.get("sui.metrics.port") or inv.get("metrics_port") or ""
-    metrics_path = str(labels.get("sui.metrics.path") or inv.get("metrics_path") or "/metrics")
+    metrics_port = labels.get("monitoring.metrics.port") or inv.get("metrics_port") or ""
+    metrics_path = str(labels.get("monitoring.metrics.path") or inv.get("metrics_path") or "/metrics")
     nets = (container.get("NetworkSettings") or {}).get("Networks") or {}
     ip = str(((nets.get(NETWORK) or {}).get("IPAddress")) or "")
     running = bool((container.get("State") or {}).get("Running"))
@@ -112,9 +112,9 @@ def record_from(container: dict, inv_by_name: dict) -> dict | None:
         "dns": dns_name(container, labels, inv, service),
         "probes": probes,
         "alert": alert,
-        "name": str(labels.get("sui.name") or inv.get("name") or ""),
-        "summary": str(labels.get("sui.summary") or inv.get("summary") or ""),
-        "resolved": str(labels.get("sui.resolved") or inv.get("resolved") or ""),
+        "name": str(labels.get("monitoring.name") or inv.get("name") or ""),
+        "summary": str(labels.get("monitoring.summary") or inv.get("summary") or ""),
+        "resolved": str(labels.get("monitoring.resolved") or inv.get("resolved") or ""),
         "metrics_port": str(metrics_port) if metrics_port else "",
         "metrics_path": metrics_path or "/metrics",
         "running": running,
@@ -159,13 +159,13 @@ def build(records: dict[str, dict], state: dict, now: float) -> tuple[list, list
     for service, rec in sorted(new_state.items()):
         labels: dict[str, str] = {"service": service}
         if rec.get("alert"):
-            labels["sui_alert"] = rec["alert"]
+            labels["monitoring_alert"] = rec["alert"]
         if rec.get("name"):
-            labels["sui_name"] = rec["name"]
+            labels["monitoring_name"] = rec["name"]
         if rec.get("summary"):
-            labels["sui_summary"] = rec["summary"]
+            labels["monitoring_summary"] = rec["summary"]
         if rec.get("resolved"):
-            labels["sui_resolved"] = rec["resolved"]
+            labels["monitoring_resolved"] = rec["resolved"]
         for url in rec.get("probes") or []:
             probes.append({"targets": [url], "labels": dict(labels)})
         live = records.get(service)
@@ -219,7 +219,7 @@ def main() -> None:
 def self_test() -> None:
     now = 1_000_000.0
     inventory = {
-        "svoi-synapse-1": {
+        "chat-synapse-1": {
             "service": "synapse",
             "dns": "synapse",
             "probes": [
@@ -236,7 +236,7 @@ def self_test() -> None:
         }
     }
     synapse = {
-        "Name": "/svoi-synapse-1",
+        "Name": "/chat-synapse-1",
         "Config": {"Labels": {}},
         "State": {"Running": True},
         "NetworkSettings": {
@@ -250,16 +250,16 @@ def self_test() -> None:
         "http://synapse:8008/_matrix/client/versions",
     ]
     grafana = {
-        "Name": "/sui-grafana-1",
+        "Name": "/monitoring-grafana-1",
         "Config": {
             "Labels": {
-                "sui.service": "grafana",
-                "sui.dns": "grafana",
-                "sui.probe": "http://grafana:3000/api/health",
-                "sui.alert": "page",
-                "sui.name": "Страницы",
-                "sui.summary": "Страницы мониторинга не открываются.",
-                "sui.resolved": "Страницы мониторинга снова открываются.",
+                "monitoring.service": "grafana",
+                "monitoring.dns": "grafana",
+                "monitoring.probe": "http://grafana:3000/api/health",
+                "monitoring.alert": "page",
+                "monitoring.name": "Страницы",
+                "monitoring.summary": "Страницы мониторинга не открываются.",
+                "monitoring.resolved": "Страницы мониторинга снова открываются.",
             }
         },
         "State": {"Running": True},
@@ -269,10 +269,10 @@ def self_test() -> None:
         "Name": "/demo-1",
         "Config": {
             "Labels": {
-                "sui.service": "demo",
-                "sui.probe": "http://demo:80/",
-                "sui.alert": "page",
-                "sui.metrics.port": "9100",
+                "monitoring.service": "demo",
+                "monitoring.probe": "http://demo:80/",
+                "monitoring.alert": "page",
+                "monitoring.metrics.port": "9100",
             }
         },
         "State": {"Running": False},
@@ -295,12 +295,12 @@ def self_test() -> None:
     probes_gone, _, _ = build({}, state, now + REMEMBER_S + 1)
     assert probes_gone == []
     labeled = {
-        "Name": "/svoi-synapse-1",
+        "Name": "/chat-synapse-1",
         "Config": {
             "Labels": {
-                "sui.service": "synapse",
-                "sui.probe": "http://synapse:8008/health",
-                "sui.alert": "page",
+                "monitoring.service": "synapse",
+                "monitoring.probe": "http://synapse:8008/health",
+                "monitoring.alert": "page",
             }
         },
         "State": {"Running": True},

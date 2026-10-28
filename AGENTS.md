@@ -1,21 +1,19 @@
-# Как запускать проект на sui
-
 Этот файл читают первым. Он задаёт способ запуска. Если он расходится с другим документом в том, как поднять процесс, побеждает он. Каркас и метки подробно: `docs/new-service.md`. Живой чат и что его гасит: `docs/work.md`. Карта узла: `docs/architecture.md`.
 
-Узел `sui.example.com`, IPv4 Tailscale `100.64.0.10`, домашний адрес `192.0.2.15`. Платформа: `/home/sui/sui-host`. Чат: `/home/sui/tailnet-messenger`. Службы идут от пользователя `sui`. Часы хоста в UTC. Контейнерам, которым нужно местное время, ставят `Europe/Moscow`.
+Узел `sui.example.com`, IPv4 Tailscale `100.64.0.10`, домашний адрес `192.0.2.15`. Платформа: `/opt/monitoring`. Путь `/home/sui/sui-host` ведёт туда ссылкой. Чат: `/home/sui/tailnet-messenger`. Службы идут от пользователя `sui`. Часы хоста в UTC. Контейнерам, которым нужно местное время, ставят `Europe/Moscow`.
 
 Хозяин узла — Оператор. Секреты, пароли, токены и пароль `sudo` в git, в ответ и в память не попадают.
 
 ## Закон
 
-Каждый проект на узле живёт в своём каталоге `/home/sui/<имя>` и в своём проекте Docker Compose. Рабочий процесс находится внутри контейнера этого проекта. Так уже устроены платформа и чат. Так же запускают всё следующее.
+Каждый новый проект живёт в своём каталоге `/home/sui/<имя>` и в своём проекте Docker Compose. Рабочий процесс находится внутри контейнера этого проекта. Мониторинг уже стоит в `/opt/monitoring`: это платформа узла, не очередное приложение. Чат остаётся в `/home/sui/tailnet-messenger`.
 
 Проект запущен, когда совпали все пункты.
 
 1. Есть свой `compose.yml` с полем `name`.
 2. Образ записан тегом. Тега `latest` нет.
 3. У каждого долгого сервиса стоит каркас из раздела ниже.
-4. Сервис подключён к сети `sui` (`external: true`, `name: sui`).
+4. Сервис подключён к сети `monitoring` (`external: true`, `name: monitoring`).
 5. Порт на хост, если он нужен, опубликован как `127.0.0.1:хост:контейнер`.
 6. Человек открывает сервис по имени `sui.example.com` через Tailscale Serve и HTTPS.
 7. Поднятие и остановка идут командой `docker compose` из каталога проекта. Юнит systemd имеет право вызывать только `docker compose up -d` и `docker compose stop`.
@@ -27,12 +25,12 @@
 
 | Проект Compose | Каталог | Кто поднимает | Что внутри |
 | --- | --- | --- | --- |
-| `sui` | `/home/sui/sui-host` | `sui-platform.service` | Prometheus, Grafana, Loki, Alloy, Alertmanager, cAdvisor, node-exporter, blackbox, postgres-exporter |
-| `svoi` | `/home/sui/tailnet-messenger` | `svoi.service` | Чат: Synapse, Postgres, Element, звонки |
+| `monitoring` | `/opt/monitoring` | `monitoring.service` | Prometheus, Grafana, Loki, Alloy, Alertmanager, cAdvisor, node-exporter, blackbox, postgres-exporter |
+| `chat` | `/home/sui/tailnet-messenger` | `svoi.service` | Чат: Synapse, Postgres, Element, звонки |
 
-Новый продукт в эти два compose-файла не вписывают. Ему заводят третий каталог и третье имя проекта. Стек платформы в новый проект не копируют: он уже запущен службой `sui-platform.service`.
+Новый продукт в эти два compose-файла не вписывают. Ему заводят третий каталог и третье имя проекта. Стек платформы в новый проект не копируют: он уже запущен службой `monitoring.service`.
 
-Сеть Docker `sui` общая. Её создаёт платформа. Сеть `svoi_data` принадлежит базе чата и помечена `internal: true`. Новый проект к `svoi_data` не подключают.
+Сеть Docker `monitoring` общая. Её создаёт платформа. Сеть `chat_data` принадлежит базе чата и помечена `internal: true`. Новый проект к `chat_data` не подключают.
 
 У чата `SVOI_OBSERVE=false`. Второй Grafana и второй Prometheus из-за этого флага не поднимают.
 
@@ -46,14 +44,14 @@
 
 ```yaml
 networks:
-  sui:
+  monitoring:
     external: true
-    name: sui
+    name: monitoring
 ```
 
 4. Секреты кладут файлами в каталог проекта, режим `600`, каталог в `.gitignore`. В compose-файл и в git секреты не пишут.
 5. На рабочей станции гоняют `docker compose config`. На узле из каталога проекта выполняют `docker compose up -d`.
-6. Проект, который должен подняться после перезагрузки, получает юнит по форме `systemd/sui-platform.service`: `Type=oneshot`, `RemainAfterExit=yes`, `User=sui`, `WorkingDirectory` равен каталогу проекта, `ExecStart=/usr/bin/docker compose up -d`, `ExecStop=/usr/bin/docker compose stop`. В `ExecStop` команды `down` нет: она удаляет контейнеры.
+6. Проект, который должен подняться после перезагрузки, получает юнит по форме `systemd/monitoring.service`: `Type=oneshot`, `RemainAfterExit=yes`, `User=sui`, `WorkingDirectory` равен каталогу проекта, `ExecStart=/usr/bin/docker compose up -d`, `ExecStop=/usr/bin/docker compose stop`. В `ExecStop` команды `down` нет: она удаляет контейнеры.
 7. Метки ставят по `docs/new-service.md`, если сервису есть чем ответить. `platform/prometheus/prometheus.yml` ради нового сервиса не правят. В `platform/services.json` новый сервис не дописывают: там только контейнеры чата, у которых меток ещё нет.
 8. Страницу для человека публикуют через Tailscale Serve на имя `sui.example.com`. На хосте порт остаётся на `127.0.0.1`.
 9. Проверяют `docker compose ps`, healthcheck и URL по имени.
@@ -70,16 +68,16 @@ networks:
 - `deploy.resources.limits.memory` с явным пределом.
 - `TZ=Europe/Moscow`, если процессу важно местное время.
 - Секрет файлом.
-- Порт `127.0.0.1:хост:контейнер`, либо порта на хосте нет и сервис виден только в сети `sui`.
-- Сеть `sui`.
+- Порт `127.0.0.1:хост:контейнер`, либо порта на хосте нет и сервис виден только в сети `monitoring`.
+- Сеть `monitoring`.
 - `healthcheck`, если у процесса есть локальный адрес здоровья.
-- Метка `sui.service`. Дальше по необходимости: `sui.dns`, `sui.probe`, `sui.metrics.port`, `sui.metrics.path`, `sui.alert=page`, `sui.name`, `sui.summary`, `sui.resolved`.
+- Метка `monitoring.service`. Дальше по необходимости: `monitoring.dns`, `monitoring.probe`, `monitoring.metrics.port`, `monitoring.metrics.path`, `monitoring.alert=page`, `monitoring.name`, `monitoring.summary`, `monitoring.resolved`.
 
 Память, CPU, перезапуски и журнал снимаются сами. cAdvisor и Alloy читают сокет Docker всего узла. Отдельную панель на контейнер не заводят. Общий список уже открыт на `https://sui.example.com/`.
 
-Метка попадает на контейнер в момент создания. У уже запущенного контейнера Docker метку не меняет. После правки меток контейнер пересоздают. Контейнер `svoi-livekit-1` во время звонка не пересоздают.
+Метка попадает на контейнер в момент создания. У уже запущенного контейнера Docker метку не меняет. После правки меток контейнер пересоздают. Контейнер `chat-livekit-1` во время звонка не пересоздают.
 
-`sui.summary` и `sui.resolved` пишут по-русски и без имён контейнеров. Пока нет `sui.alert=page`, упавшая проверка на графике есть, а в ночной Telegram не уходит.
+`monitoring.summary` и `monitoring.resolved` пишут по-русски и без имён контейнеров. Пока нет `monitoring.alert=page`, упавшая проверка на графике есть, а в ночной Telegram не уходит.
 
 Готовый пример compose лежит в `docs/new-service.md`.
 
@@ -127,10 +125,10 @@ https://sui.example.com:8444         звонки
 Их не выполняют, чтобы освободить место новому проекту.
 
 - `systemctl restart svoi.service` и `systemctl stop svoi.service`. `ExecStop` вызывает `make down` и останавливает чат.
-- `docker compose down` в `/home/sui/sui-host` и в каталоге чужого проекта. Свой проект останавливают командой `docker compose stop` в его каталоге.
+- `docker compose down` в `/opt/monitoring` и в каталоге чужого проекта. Свой проект останавливают командой `docker compose stop` в его каталоге.
 - Флаг `--remove-orphans`.
-- Пересоздание `svoi-livekit-1`, пока идёт звонок.
-- Полный `scripts/render_config.py` на узле. Он переписывает homeserver, Element, LiveKit и Caddy.
+- Пересоздание `chat-livekit-1`, пока идёт звонок.
+- `make up` в каталоге чата и полный `scripts/render_config.py` на узле. Оба переписывают homeserver, Element, LiveKit и Caddy.
 - `docker volume prune`, `docker system prune --volumes`, `docker compose down -v`. Тома `svoi_synapse-data` и `svoi_postgres-data` содержат ключ подписи и базу.
 - Перезагрузка узла, новый пользователь Linux, выключение `userland-proxy`, перезапуск `dockerd`.
 - Включение подсветки. Экран гасит `sui-dark-mode`.
@@ -163,7 +161,7 @@ ssh -o 'ProxyCommand=/Applications/Tailscale.app/Contents/MacOS/Tailscale nc %h 
 - каталог и имя проекта Compose;
 - образ с тегом;
 - порт на `127.0.0.1` и URL вида `https://sui.example.com...`;
-- метки `sui.*`, либо фразу «меток нет, сервису нечего проверять».
+- метки `monitoring.*`, либо фразу «меток нет, сервису нечего проверять».
 
 Нет честного значения для строки — процесс на узле не стартует. Вопрос задают до запуска.
 
@@ -173,7 +171,7 @@ ssh -o 'ProxyCommand=/Applications/Tailscale.app/Contents/MacOS/Tailscale nc %h 
 
 - `docker compose ps` этого проекта: сервис в состоянии Up. Если задан healthcheck, он healthy.
 - Запрос по имени `sui.example.com` и код ответа.
-- Для сервиса с `sui.probe` или `sui.metrics.port`: цель подхватил discover. Отдельный дашборд не создавался.
+- Для сервиса с `monitoring.probe` или `monitoring.metrics.port`: цель подхватил discover. Отдельный дашборд не создавался.
 - Чат и платформа на месте. Synapse и Grafana ради этого запуска не пересоздавались.
 
 Чужой проект при этом не останавливают.
