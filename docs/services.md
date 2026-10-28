@@ -1,6 +1,8 @@
 # Сервисы
 
-Состав узла на 28 октября 2026. Образы ниже — те, что запущены.
+Состав узла на 28 октября 2026. Образы мониторинга закреплены в `.env.example` этого репозитория. Образы чата закреплены в compose репозитория `N4L34/tailnet-messenger`. Этот файл — инвентарь, а не второй источник тегов.
+
+Долгий проект — контейнер своего Compose. Короткое задание, которое завершается, остаётся таймером: discover, резервная копия, утренняя сводка, проверка края. `avtobot.service` и `svoi-telegram-bot.service` уже работают вне Docker. Новым проектом эту форму не копируют и в этом изменении в контейнер их не переносят.
 
 ## Хост
 
@@ -8,24 +10,24 @@
 | --- | --- |
 | `docker.service` | контейнеры, включена при загрузке |
 | `tailscaled.service` | адрес `100.64.0.10` и Serve |
-| `svoi.service` | Compose чата из `/home/sui/tailnet-messenger`, без стека наблюдения |
+| `svoi.service` | Compose чата из `/home/sui/tailnet-messenger`, без стека наблюдения. Остановка вызывает `make down` |
 | `monitoring.service` | метрики, журнал и алерты из `/opt/monitoring` |
-| `monitoring-discover.timer` | раз в 15 секунд обновляет цели Prometheus по меткам |
-| `svoi-backup.timer` | резервная копия чата раз в час |
-| `svoi-edge-probe.timer` | раз в минуту проверяет чат и звонки через Tailscale |
-| `svoi-telegram-bot.service` | команды управления людьми и комнатами |
-| `svoi-telegram-morning.timer` | сводка в 05:00 UTC, 08:00 Europe/Moscow |
-| `svoi-telegram-week.timer` | сводка в воскресенье 08:00 UTC, 11:00 Europe/Moscow |
+| `monitoring-discover.timer` | раз в 15 секунд обновляет цели Prometheus по меткам и завершается |
+| `svoi-backup.timer` | резервная копия чата раз в час и завершается |
+| `svoi-edge-probe.timer` | раз в минуту проверяет чат и звонки через Tailscale и завершается |
+| `svoi-telegram-bot.service` | долгий процесс команд вне Docker. Образцом нового проекта не служит |
+| `svoi-telegram-morning.timer` | сводка в 05:00 UTC, 08:00 Europe/Moscow, и завершается |
+| `svoi-telegram-week.timer` | сводка в воскресенье 08:00 UTC, 11:00 Europe/Moscow, и завершается |
 | `sui-dark-mode.service` | гасит панель устройства |
-| `avtobot.service` | отдельный процесс вне Docker |
+| `avtobot.service` | долгий процесс вне Docker. Образцом нового проекта не служит |
 
-`svoi.service` смотрит в `/home/sui/tailnet-messenger`. Файл в репозитории чата всё ещё указывает `WorkingDirectory=/opt/tailnet-messenger`. Поверх `/etc/systemd/system/svoi.service` его не копируют. `ExecStop` вызывает `make down` и останавливает чат.
+`svoi.service` смотрит в `/home/sui/tailnet-messenger`. Файл в репозитории чата всё ещё указывает `WorkingDirectory=/opt/tailnet-messenger`. Поверх `/etc/systemd/system/svoi.service` его не копируют.
 
 Календари systemd на этом узле считаются в UTC. Поле `Timezone=` не действует.
 
 ## Чат
 
-Проект Compose `chat`. Каталог `/home/sui/tailnet-messenger`. Код в `N4L34/tailnet-messenger`. Имя проекта задаёт префикс контейнеров. Служба `svoi.service` называется по-старому: её остановка вызывает `make down`.
+Проект Compose `chat`. Каталог `/home/sui/tailnet-messenger`. Код в `N4L34/tailnet-messenger`. Имя проекта задаёт префикс контейнеров. Служба `svoi.service` называется по-старому. Теги сверяют с compose того репозитория.
 
 | Контейнер | Образ | Публикация |
 | --- | --- | --- |
@@ -37,6 +39,8 @@
 | `chat-calls-proxy-1` | `caddy:2.10-alpine` | `127.0.0.1:7882`, Serve `:8444` |
 | `chat-call-dial-1` | `caddy:2.10-alpine` | внутренний набор для сервиса токенов, порта на хосте нет |
 
+Тег `latest` у `chat-lk-jwt-1` — известный долг этого контейнера. Новый образ так не подписывают.
+
 `synapse-data-init` в списке процессов не остаётся. Он выставляет права на каталог данных и завершается.
 
 Тома на диске остаются `svoi_synapse-data` и `svoi_postgres-data`. В первом лежит ключ подписи сервера. Каталоги не переименовывают и не копируют.
@@ -47,21 +51,23 @@ LiveKit оставляют на `v1.13.10`. Образ `v1.9.0` не обслу�
 
 Регистрация закрыта. Учётные записи создаёт оператор или бот команд. Локальные части `operator` и `svoibot` не удаляют и не сбрасывают. Пароли в этот репозиторий не входят.
 
-## Платформа
+## Мониторинг
 
-Проект Compose `monitoring`, каталог `/opt/monitoring`, служба `monitoring.service`. Цели Prometheus обновляет `monitoring-discover.timer`. История графиков и журнала лежит во внешних томах `svoi_prom-data`, `svoi_grafana-data`, `svoi_loki-data`, `svoi_alert-data`, `svoi_alloy-data`. Имена этих томов оставлены: внутри история, и новый пустой том её не заменит.
+Проект Compose `monitoring`, каталог `/opt/monitoring`, служба `monitoring.service`. Теги сверяют с `.env.example`. Цели Prometheus обновляет `monitoring-discover.timer`. История графиков и журнала лежит во внешних томах `svoi_prom-data`, `svoi_grafana-data`, `svoi_loki-data`, `svoi_alert-data`, `svoi_alloy-data`. Имена этих томов оставлены: внутри история, и новый пустой том её не заменит.
 
-| Контейнер | Образ | Роль |
+| Контейнер | Образ в `.env.example` | Роль |
 | --- | --- | --- |
 | `monitoring-grafana-1` | `grafana/grafana:12.0.2` | интерфейс, `127.0.0.1:3000` |
 | `monitoring-prometheus-1` | `prom/prometheus:v3.4.0` | метрики, `127.0.0.1:9091` |
 | `monitoring-alertmanager-1` | `prom/alertmanager:v0.28.0` | page-алерты |
 | `monitoring-loki-1` | `grafana/loki:3.4.2` | журнал |
-| `monitoring-alloy-1` | `grafana/alloy:v1.8.1` | сбор логов контейнеров |
-| `monitoring-cadvisor-1` | `ghcr.io/google/cadvisor:v0.60.6` | память, CPU, перезапуски |
+| `monitoring-alloy-1` | `grafana/alloy:v1.8.1` | сбор логов контейнеров, сокет Docker |
+| `monitoring-cadvisor-1` | `ghcr.io/google/cadvisor:v0.60.6` | память, CPU, перезапуски, `privileged` |
 | `monitoring-node-exporter-1` | `prom/node-exporter:v1.9.0` | диск и узел |
 | `monitoring-postgres-exporter-1` | `prometheuscommunity/postgres-exporter:v0.17.1` | база чата |
 | `monitoring-blackbox-1` | `prom/blackbox-exporter:v0.25.0` | HTTP-проверки в сети `monitoring` |
+
+Сокет Docker у Alloy и `privileged` у cAdvisor остаются исключением мониторинга. Новому проекту их не копируют.
 
 Page-алерт уходит, когда чат не отвечает, сервис с `monitoring.alert=page` не отвечает, на диске свободно меньше 15%, локальная или внешняя копия старше 26 часов, ядро завершило процесс по памяти, по корню Serve открылся не Matrix, звонки не готовы, остановилась проверка края или платформа перестала видеть свои компоненты. Повтор раз в 4 часа. Обрыв одного звонка, строка в Loki и короткий всплеск CPU в этот канал не входят. Проверка без `page` остаётся на графике.
 
@@ -73,4 +79,4 @@ Page-алерт уходит, когда чат не отвечает, серв�
 
 ## Доступ
 
-SSH на узел идёт пользователем `sui` через Tailscale. Доступ к репозиторию сам по себе вход на узел не даёт.
+SSH на узел идёт пользователем `sui` через Tailscale. Доступ к репозиторию сам по себе вход на узел не даёт. Команды входа: `docs/work.md`.

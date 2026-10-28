@@ -1,34 +1,39 @@
 # Подключение сервиса
 
-Закон запуска записан в `AGENTS.md`: свой каталог, свой проект Compose, процесс только в контейнере. Этот файл даёт каркас, метки и пример. Если способы запуска расходятся, побеждает `AGENTS.md`.
+Способ запуска решает `AGENTS.md`. Этот файл даёт каркас, метки и пример Compose.
 
-Новый процесс на узле получает свой каталог в `/home/sui` и свой проект Compose. В проект чата его не добавляют. Сеть `chat_data` и том Postgres чата ему не отдают. Долгоживущий `docker run` вне Compose не оставляют.
+Новый процесс на узле получает свой каталог в `/home/sui/<имя>` и свой проект Compose с тем же именем. В проект чата и в проект мониторинга его не добавляют. Сеть `chat_data` и том Postgres чата ему не отдают. Мониторинг в новый проект не копируют: он уже запущен службой `monitoring.service` из `/opt/monitoring`.
 
-Мониторинг уже запущен службой `monitoring.service` из `/opt/monitoring`. В новый проект его не копируют.
+## Каркас
 
-## Каркас контейнера
+Образ фиксируют тегом. Тега `latest` нет. `pull_policy: missing` оставляет на узле уже скачанный тег. Другой тег приезжает только явным `docker compose pull` этого сервиса.
 
-Образ фиксируют тегом, не `latest`. У долгого сервиса:
+У долгого сервиса:
 
 - `restart: unless-stopped`;
 - `security_opt: [no-new-privileges:true]`;
-- журнал `json-file`, `max-size: 10m`, `max-file: "5"`;
-- предел памяти;
-- `TZ` из окружения, если процессу нужно московское время;
-- секрет файлом, не строкой в compose и не в git;
+- `init: true`;
+- журнал `json-file`, `max-size: "10m"`, `max-file: "5"`;
+- `deploy.resources.limits.memory` с явным пределом;
+- `user` равен пользователю, под которым собран образ. У официального образа берут пользователя из его документации. Поле не ставят наугад;
+- `read_only: true` и `tmpfs` на `/tmp`, если процесс живёт без записи в корень контейнера. Образ, который без такой записи не стартует, оставляют с записью и пишут причину в ответе;
+- `TZ=Europe/Moscow`, если процессу нужно московское время;
+- секрет файлом режима `600`, не строкой в compose и не в git;
 - порт на хост только `127.0.0.1:хост:контейнер`;
 - сеть `monitoring` с `external: true` и `name: monitoring`;
-- `healthcheck`, если есть локальный адрес здоровья.
+- `healthcheck` с `interval`, `timeout`, `retries` и `start_period`, если в образе есть команда проверки. Команду, которой в образе нет, не выдумывают.
 
-На `0.0.0.0` и на порт `8448` сервис не сажают. `network_mode: host` не используют. Исключение одно: медиа LiveKit уже слушает адрес Tailscale.
+На `0.0.0.0` и на порт `8448` сервис не сажают. `network_mode: host` не используют. Медиа LiveKit уже слушает адрес Tailscale. Новый проект этот адрес не занимает.
 
 Одноразовая подготовка, которая завершается после работы, получает `restart: "no"`.
 
-## Что подключается само
+Лимит памяти из `deploy.resources.limits` Compose на одном узле применяет сам. Swarm для этого не поднимают.
+
+## Метки
 
 Память, CPU, перезапуски и журнал появляются сразу: cAdvisor и Alloy читают сокет Docker всего узла. Отдельный дашборд на контейнер не заводят. Общий список уже есть на `https://sui.example.com/`.
 
-Дальше метки. Таймер `monitoring-discover.timer` раз в 15 секунд читает их и пишет цели Prometheus. Для нового сервиса `prometheus.yml` не правят.
+Таймер `monitoring-discover.timer` раз в 15 секунд читает метки и пишет цели Prometheus. Для нового сервиса `prometheus.yml` не правят.
 
 | Метка | Назначение |
 | --- | --- |
@@ -44,20 +49,30 @@
 
 Без `monitoring.alert=page` проверка и метрики есть, page-алерта нет. Текст алерта пишут по-русски и без имён контейнеров.
 
-Метка попадает на контейнер при создании. У уже запущенного контейнера Docker её не меняет. После правки меток контейнер пересоздают. LiveKit при активном звонке не пересоздают.
+Метка попадает на контейнер при создании. У уже запущенного контейнера Docker её не меняет. После правки меток контейнер пересоздают командой из раздела ниже. `chat-livekit-1` при активном звонке не пересоздают.
 
 Если контейнер с `monitoring.alert=page` удалён, проверка ещё 6 часов остаётся и падает. Затем запись снимается.
 
-Пока у контейнеров чата нет меток, их цели записаны в `platform/services.json`. Метка на контейнере перекрывает эту запись.
+Пока у контейнеров чата нет меток, их цели записаны в `platform/services.json`. Метка на контейнере перекрывает эту запись. Новый сервис в этот файл не дописывают.
 
 ## Пример
+
+`user: "1000:1000"` в примере — пользователь, под которым собран этот образ. Для другого образа ставят его пользователя.
 
 ```yaml
 services:
   billing:
     image: ghcr.io/example/billing:1.4.2
+    pull_policy: missing
+    user: "1000:1000"
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
     restart: unless-stopped
     security_opt: [no-new-privileges:true]
+    environment:
+      TZ: Europe/Moscow
     logging:
       driver: json-file
       options:
@@ -67,6 +82,12 @@ services:
       - "127.0.0.1:8090:8080"
     networks:
       - monitoring
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     labels:
       monitoring.service: billing
       monitoring.probe: http://billing:8080/health
@@ -87,9 +108,34 @@ networks:
     name: monitoring
 ```
 
-Имя `billing` в URL проверки — имя сервиса Compose на сети `monitoring`. Оно должно резолвиться из контейнера `blackbox`.
+Имя `billing` в URL проверки — имя сервиса Compose на сети `monitoring`. Оно резолвится из контейнера `blackbox`. Команда healthcheck — та, что есть в образе.
 
-Юнит systemd для такого проекта: `Type=oneshot`, `RemainAfterExit=yes`, `ExecStart=docker compose up -d`, `ExecStop=docker compose stop`. В `ExecStop` не ставят `down`: команда удаляет контейнеры.
+## Команды
+
+Из каталога проекта на рабочей станции:
+
+```bash
+docker compose config
+```
+
+На узле проект поднимают и смотрят так:
+
+```bash
+docker compose up -d
+docker compose ps
+```
+
+Один сервис обновляют без соседей:
+
+```bash
+docker compose up --no-deps -d billing
+```
+
+Свой проект останавливают командой `docker compose stop` в его каталоге. В `ExecStop` юнита слова `down` нет: команда удаляет контейнеры.
+
+Юнит systemd для проекта копирует `systemd/monitoring.service`: `Type=oneshot`, `RemainAfterExit=yes`, `User=sui`, `WorkingDirectory` равен каталогу проекта, `ExecStart=/usr/bin/docker compose up -d`, `ExecStop=/usr/bin/docker compose stop`.
+
+`rsync` поверх файла, который уже смонтирован в контейнер, оставляет процесс на старом inode. Такой контейнер пересоздают точечно, командой `up --no-deps -d` на этот сервис.
 
 ## Чат
 
