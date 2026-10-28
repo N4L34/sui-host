@@ -1,0 +1,5 @@
+.env
+secrets/
+*.sqlite
+*.log
+.DS_Store
