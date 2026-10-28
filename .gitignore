@@ -6,3 +6,4 @@ __pycache__/
 *.sqlite
 *.log
 .DS_Store
+runner/runner_token

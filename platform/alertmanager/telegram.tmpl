@@ -1,3 +1,3 @@
 {{ define "svoi.telegram" }}{{ if eq .Status "firing" }}Суи · срочно{{ else }}Суи: снова в порядке{{ end }}
-{{ with index .Alerts 0 }}{{ if eq $.Status "firing" }}{{ .Annotations.summary }}{{ else }}{{ .Annotations.resolved }}{{ end }}
+{{ with index .Alerts 0 }}{{ if .Labels.project }}{{ .Labels.project }}{{ else if .Labels.container_label_com_docker_compose_project }}{{ .Labels.container_label_com_docker_compose_project }}{{ end }}{{ if or .Labels.project .Labels.container_label_com_docker_compose_project }}: {{ end }}{{ if eq $.Status "firing" }}{{ .Annotations.summary }}{{ else }}{{ .Annotations.resolved }}{{ end }}
 {{ end }}{{ end }}

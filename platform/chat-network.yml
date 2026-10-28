@@ -13,6 +13,7 @@ services:
       monitoring:
         aliases: [synapse]
     labels:
+      monitoring.project: chat
       monitoring.service: synapse
       monitoring.dns: synapse
       monitoring.probe: "http://synapse:8008/health,http://synapse:8008/_matrix/client/versions"
@@ -29,6 +30,7 @@ services:
       monitoring:
         aliases: [element-web]
     labels:
+      monitoring.project: chat
       monitoring.service: element-web
       monitoring.dns: element-web
       monitoring.probe: http://element-web:80/
@@ -40,6 +42,7 @@ services:
       monitoring:
         aliases: [livekit]
     labels:
+      monitoring.project: chat
       monitoring.service: livekit
       monitoring.dns: livekit
       monitoring.probe: http://livekit:7880/
@@ -53,6 +56,7 @@ services:
       monitoring:
         aliases: [lk-jwt]
     labels:
+      monitoring.project: chat
       monitoring.service: lk-jwt
       monitoring.dns: lk-jwt
       monitoring.probe: http://lk-jwt:8080/healthz
@@ -64,6 +68,7 @@ services:
       monitoring:
         aliases: [calls-proxy]
     labels:
+      monitoring.project: chat
       monitoring.service: calls-proxy
       monitoring.dns: calls-proxy
       monitoring.probe: http://calls-proxy:80/

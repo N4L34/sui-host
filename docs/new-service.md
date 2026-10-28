@@ -37,7 +37,8 @@
 
 | Метка | Назначение |
 | --- | --- |
-| `monitoring.service` | имя серии, латиницей |
+| `monitoring.project` | имя проекта Compose. Если метки нет, берётся `com.docker.compose.project` |
+| `monitoring.service` | имя сервиса внутри этого проекта, латиницей |
 | `monitoring.dns` | имя на сети `monitoring`, если оно отличается от имени сервиса |
 | `monitoring.probe` | URL HTTP через запятую, например `http://billing:8080/health` |
 | `monitoring.metrics.port` | порт `/metrics` |
@@ -48,6 +49,8 @@
 | `monitoring.resolved` | текст, когда проверка снова успешна |
 
 Без `monitoring.alert=page` проверка и метрики есть, page-алерта нет. Текст алерта пишут по-русски и без имён контейнеров.
+
+Имя проекта Compose — отдельная метка `project` на проверке и на `/metrics`. Два проекта с сервисом `api` остаются двумя целями: ключ `billing/api` и `shop/api`. Второй Prometheus и вторая Grafana для этого не поднимаются. На дашборде `Свои` сверху выбирается проект, и контейнеры, проверки и память этого Compose показываются отдельно от остальных. В Telegram перед текстом алерта пишется имя проекта.
 
 Метка попадает на контейнер при создании. У уже запущенного контейнера Docker её не меняет. После правки меток контейнер пересоздают командой из раздела ниже. `chat-livekit-1` при активном звонке не пересоздают.
 
@@ -89,6 +92,7 @@ services:
       retries: 3
       start_period: 20s
     labels:
+      monitoring.project: billing
       monitoring.service: billing
       monitoring.probe: http://billing:8080/health
       monitoring.metrics.port: "8080"

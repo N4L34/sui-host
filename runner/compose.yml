@@ -1,0 +1,33 @@
+# Local GitHub Actions runner. Deploy jobs for this repo run here.
+# Register once with a token that is not stored in git:
+#   ACTIONS_RUNNER_INPUT_TOKEN from a file on the node, mode 600.
+name: runner
+
+services:
+  runner:
+    image: ghcr.io/actions/actions-runner:2.328.0
+    pull_policy: missing
+    restart: unless-stopped
+    security_opt: [no-new-privileges:true]
+    memswap_limit: 512M
+    environment:
+      ACTIONS_RUNNER_INPUT_URL: https://github.com/N4L34/sui-host
+      ACTIONS_RUNNER_INPUT_NAME: sui
+      ACTIONS_RUNNER_INPUT_LABELS: sui
+      ACTIONS_RUNNER_INPUT_TOKEN_FILE: /run/secrets/runner_token
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - runner-data:/home/runner
+      - ./runner_token:/run/secrets/runner_token:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+volumes:
+  runner-data:

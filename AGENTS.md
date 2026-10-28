@@ -1,6 +1,6 @@
 # Как запускать проект на sui
 
-Этот файл читают первым. Он решает, как поднять процесс. Карта узла: `docs/architecture.md`. Каркас и пример Compose: `docs/new-service.md`. Команды на живом узле: `docs/work.md`. Состав: `docs/services.md`.
+Этот файл читают первым. Он решает, как поднять процесс. Карта узла: `docs/architecture.md`. Каркас и пример Compose: `docs/new-service.md`. Команды на живом узле: `docs/work.md`. Состав: `docs/services.md`. Проверки и выкладка: `docs/standard.md`.
 
 Узел `sui.example.com`. Мониторинг `/opt/monitoring`, проект Compose `monitoring`. Путь `/home/sui/sui-host` ведёт туда ссылкой. Чат `/home/sui/tailnet-messenger`, проект Compose `chat`. Службы идут от пользователя `sui`. Секреты, пароли, токены и пароль `sudo` в git, в ответ и в память не попадают.
 
@@ -51,7 +51,7 @@ docker compose up --no-deps -d <сервис>
 - каталог и имя проекта Compose;
 - образ с тегом;
 - порт на `127.0.0.1` и URL `https://sui.example.com...`;
-- метки `monitoring.*`, либо фразу «меток нет, сервису нечего проверять».
+- метки `monitoring.*`, включая `monitoring.project` равный имени Compose, либо фразу «меток нет, сервису нечего проверять». Одинаковый сервис в другом проекте — отдельная цель.
 
 Нет значения для строки — процесс на узле не стартует. Вопрос задают до запуска.
 

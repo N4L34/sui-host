@@ -2,6 +2,7 @@
   "services": [
     {
       "match": "chat-synapse-1",
+      "project": "chat",
       "service": "synapse",
       "dns": "synapse",
       "name": "Чат",
@@ -17,6 +18,7 @@
     },
     {
       "match": "chat-element-web-1",
+      "project": "chat",
       "service": "element-web",
       "dns": "element-web",
       "name": "Element",
@@ -24,6 +26,7 @@
     },
     {
       "match": "chat-livekit-1",
+      "project": "chat",
       "service": "livekit",
       "dns": "livekit",
       "name": "Звонки",
@@ -33,6 +36,7 @@
     },
     {
       "match": "chat-lk-jwt-1",
+      "project": "chat",
       "service": "lk-jwt",
       "dns": "lk-jwt",
       "name": "Токены звонка",
@@ -40,6 +44,7 @@
     },
     {
       "match": "chat-calls-proxy-1",
+      "project": "chat",
       "service": "calls-proxy",
       "dns": "calls-proxy",
       "name": "Прокси звонков",

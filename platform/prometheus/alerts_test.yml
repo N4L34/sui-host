@@ -1,0 +1,48 @@
+rule_files:
+  - alerts.yml
+
+evaluation_interval: 1m
+
+tests:
+  - interval: 1m
+    input_series:
+      - series: 'probe_success{job="probe", project="chat", service="synapse"}'
+        values: "0x10"
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: HomeserverDown
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              job: probe
+              project: chat
+              service: synapse
+            exp_annotations:
+              summary: "Чат не отвечает уже больше 2 минут."
+              resolved: "Чат снова отвечает."
+  - interval: 1m
+    input_series:
+      - series: 'probe_success{job="probe", project="chat", service="synapse"}'
+        values: "1x10"
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: HomeserverDown
+        exp_alerts: []
+  - interval: 1m
+    input_series:
+      - series: 'node_filesystem_avail_bytes{device="/dev/disk", fstype="ext4", mountpoint="/"}'
+        values: "10x20"
+      - series: 'node_filesystem_size_bytes{device="/dev/disk", fstype="ext4", mountpoint="/"}'
+        values: "100x20"
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: DiskSpaceLow
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              device: /dev/disk
+              fstype: ext4
+              mountpoint: /
+            exp_annotations:
+              summary: "Мало места на диске: свободно меньше 15%."
+              resolved: "Места на диске снова достаточно."

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "dependencyDashboard": false,
+  "labels": ["dependencies"],
+  "prConcurrentLimit": 2,
+  "minimumReleaseAge": "3 days",
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.env\\.example$/"],
+      "matchStrings": ["^[A-Z0-9_]+_IMAGE=(?<depName>[^:\\s]+):(?<currentValue>[^\\s]+)$"],
+      "datasourceTemplate": "docker"
+    }
+  ],
+  "packageRules": [
+    {
+      "matchDatasources": ["docker"],
+      "automerge": false
+    }
+  ]
+}

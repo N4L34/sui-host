@@ -1,7 +1,7 @@
 {
   "title": "Свои",
   "uid": "svoi",
-  "description": "Свободные ресурсы sui и всё, что Docker на нём запустил. Новый контейнер появляется сам.",
+  "description": "Свободные ресурсы sui. Контейнеры, проверки и метрики режутся по проекту Compose: у чата, мониторинга и любого следующего проекта свой срез на одном Prometheus.",
   "timezone": "browser",
   "schemaVersion": 39,
   "version": 2,
@@ -12,13 +12,30 @@
   "templating": {
     "list": [
       {
+        "name": "project",
+        "label": "Проект",
+        "type": "query",
+        "datasource": "Prometheus",
+        "definition": "label_values(container_memory_working_set_bytes{name!=\"\"}, container_label_com_docker_compose_project)",
+        "query": {
+          "query": "label_values(container_memory_working_set_bytes{name!=\"\"}, container_label_com_docker_compose_project)",
+          "refId": "A"
+        },
+        "includeAll": true,
+        "allValue": ".+",
+        "multi": false,
+        "refresh": 2,
+        "sort": 1,
+        "current": { "text": "All", "value": "$__all" }
+      },
+      {
         "name": "container",
         "label": "Контейнер",
         "type": "query",
         "datasource": "Prometheus",
-        "definition": "label_values(container_memory_working_set_bytes{name!=\"\"}, name)",
+        "definition": "label_values(container_memory_working_set_bytes{name!=\"\", container_label_com_docker_compose_project=~\"$project\"}, name)",
         "query": {
-          "query": "label_values(container_memory_working_set_bytes{name!=\"\"}, name)",
+          "query": "label_values(container_memory_working_set_bytes{name!=\"\", container_label_com_docker_compose_project=~\"$project\"}, name)",
           "refId": "A"
         },
         "includeAll": true,
@@ -199,7 +216,7 @@
       "gridPos": { "h": 3, "w": 24, "x": 0, "y": 22 },
       "options": {
         "mode": "markdown",
-        "content": "Список не зашит. cAdvisor смотрит сокет Docker, поэтому **новый контейнер на этой машине появляется здесь сам**, без правки дашборда. Логи снизу так же: Alloy подхватывает каждый контейнер. Свои счётчики приложения (не CPU и не память) добавляются строкой в `prometheus.yml` на внутренний порт. На хост этот порт не публикуют."
+        "content": "Сверху выбран проект Compose. `chat`, `monitoring` и любой следующий проект — отдельные срезы, второй Grafana им не нужен. cAdvisor смотрит сокет Docker, поэтому контейнер появляется сам. Проверки и `/metrics` несут метку `project`. Логи снизу так же: Alloy подхватывает каждый контейнер."
       }
     },
     {
@@ -208,7 +225,7 @@
       "title": "Контейнеров",
       "datasource": "Prometheus",
       "gridPos": { "h": 4, "w": 4, "x": 0, "y": 25 },
-      "targets": [{ "expr": "count(container_memory_working_set_bytes{name!=\"\"})", "refId": "A" }],
+      "targets": [{ "expr": "count(container_memory_working_set_bytes{name!=\"\", container_label_com_docker_compose_project=~\"$project\"})", "refId": "A" }],
       "options": { "colorMode": "none", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
       "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 } }
     },
@@ -218,7 +235,7 @@
       "title": "Их память",
       "datasource": "Prometheus",
       "gridPos": { "h": 4, "w": 4, "x": 4, "y": 25 },
-      "targets": [{ "expr": "sum(container_memory_working_set_bytes{name!=\"\"})", "refId": "A" }],
+      "targets": [{ "expr": "sum(container_memory_working_set_bytes{name!=\"\", container_label_com_docker_compose_project=~\"$project\"})", "refId": "A" }],
       "options": { "colorMode": "none", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
       "fieldConfig": { "defaults": { "unit": "bytes" } }
     },
@@ -228,7 +245,7 @@
       "title": "Их CPU",
       "datasource": "Prometheus",
       "gridPos": { "h": 4, "w": 4, "x": 8, "y": 25 },
-      "targets": [{ "expr": "sum(rate(container_cpu_usage_seconds_total{cpu=\"total\", name!=\"\"}[5m]))", "refId": "A" }],
+      "targets": [{ "expr": "sum(rate(container_cpu_usage_seconds_total{cpu=\"total\", name!=\"\", container_label_com_docker_compose_project=~\"$project\"}[5m]))", "refId": "A" }],
       "options": { "colorMode": "none", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
       "fieldConfig": { "defaults": { "unit": "short", "decimals": 2 } }
     },
@@ -238,7 +255,7 @@
       "title": "Кто сколько памяти ест",
       "datasource": "Prometheus",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 25 },
-      "targets": [{ "expr": "sort_desc(container_memory_working_set_bytes{name!=\"\"})", "instant": true, "format": "table", "refId": "A" }],
+      "targets": [{ "expr": "sort_desc(container_memory_working_set_bytes{name!=\"\", container_label_com_docker_compose_project=~\"$project\"})", "instant": true, "format": "table", "refId": "A" }],
       "options": { "showHeader": true, "cellHeight": "sm", "footer": { "show": false } },
       "fieldConfig": {
         "defaults": { "unit": "bytes" },
@@ -254,7 +271,7 @@
       "title": "CPU контейнеров",
       "datasource": "Prometheus",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 33 },
-      "targets": [{ "expr": "sum by (name) (rate(container_cpu_usage_seconds_total{cpu=\"total\", name!=\"\", name=~\"$container\"}[5m]))", "legendFormat": "{{name}}", "refId": "A" }],
+      "targets": [{ "expr": "sum by (name) (rate(container_cpu_usage_seconds_total{cpu=\"total\", name!=\"\", name=~\"$container\", container_label_com_docker_compose_project=~\"$project\"}[5m]))", "legendFormat": "{{name}}", "refId": "A" }],
       "fieldConfig": { "defaults": { "unit": "short", "decimals": 3 } }
     },
     {
@@ -263,7 +280,7 @@
       "title": "Память контейнеров",
       "datasource": "Prometheus",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 33 },
-      "targets": [{ "expr": "container_memory_working_set_bytes{name!=\"\", name=~\"$container\"}", "legendFormat": "{{name}}", "refId": "A" }],
+      "targets": [{ "expr": "container_memory_working_set_bytes{name!=\"\", name=~\"$container\", container_label_com_docker_compose_project=~\"$project\"}", "legendFormat": "{{name}}", "refId": "A" }],
       "fieldConfig": { "defaults": { "unit": "bytes" } }
     },
     {
@@ -273,8 +290,8 @@
       "datasource": "Prometheus",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 41 },
       "targets": [
-        { "expr": "sum by (name) (rate(container_network_receive_bytes_total{name!=\"\", name=~\"$container\"}[5m]))", "legendFormat": "in {{name}}", "refId": "A" },
-        { "expr": "sum by (name) (rate(container_network_transmit_bytes_total{name!=\"\", name=~\"$container\"}[5m]))", "legendFormat": "out {{name}}", "refId": "B" }
+        { "expr": "sum by (name) (rate(container_network_receive_bytes_total{name!=\"\", name=~\"$container\", container_label_com_docker_compose_project=~\"$project\"}[5m]))", "legendFormat": "in {{name}}", "refId": "A" },
+        { "expr": "sum by (name) (rate(container_network_transmit_bytes_total{name!=\"\", name=~\"$container\", container_label_com_docker_compose_project=~\"$project\"}[5m]))", "legendFormat": "out {{name}}", "refId": "B" }
       ],
       "fieldConfig": { "defaults": { "unit": "Bps" } }
     },
@@ -284,7 +301,7 @@
       "title": "Перезапуски за час",
       "datasource": "Prometheus",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 41 },
-      "targets": [{ "expr": "sum by (name) (changes(container_start_time_seconds{name!=\"\", name=~\"$container\"}[1h]))", "legendFormat": "{{name}}", "refId": "A" }],
+      "targets": [{ "expr": "sum by (name) (changes(container_start_time_seconds{name!=\"\", name=~\"$container\", container_label_com_docker_compose_project=~\"$project\"}[1h]))", "legendFormat": "{{name}}", "refId": "A" }],
       "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 } }
     },
     {
@@ -417,7 +434,7 @@
       "title": "Пробы",
       "datasource": "Prometheus",
       "gridPos": { "h": 7, "w": 24, "x": 0, "y": 62 },
-      "targets": [{ "expr": "probe_success", "legendFormat": "{{job}} {{instance}}", "refId": "A" }],
+      "targets": [{ "expr": "probe_success{project=~\"$project\"}", "legendFormat": "{{project}} {{service}}", "refId": "A" }],
       "fieldConfig": { "defaults": { "min": 0, "max": 1, "custom": { "fillOpacity": 10 } } }
     },
     {

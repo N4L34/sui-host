@@ -28,6 +28,13 @@ services:
     security_opt:
       - no-new-privileges:true
     logging: *jsonlog
+    memswap_limit: 1536M
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:9090/-/ready"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     deploy:
       resources:
         limits:
@@ -45,6 +52,13 @@ services:
       - ./platform/alertmanager/telegram.tmpl:/etc/alertmanager/telegram.tmpl:ro
       - ./runtime/telegram_token:/etc/alertmanager/telegram_token:ro
       - alert-data:/alertmanager
+    memswap_limit: 128M
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:9093/-/ready"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     networks:
       - monitoring
     restart: unless-stopped
@@ -62,6 +76,7 @@ services:
       - --config.file=/etc/blackbox/blackbox.yml
     volumes:
       - ./platform/blackbox/blackbox.yml:/etc/blackbox/blackbox.yml:ro
+    memswap_limit: 128M
     networks:
       - monitoring
     restart: unless-stopped
@@ -85,6 +100,7 @@ services:
     volumes:
       - /:/host:ro,rslave
       - ${TEXTFILE}:/textfile:ro
+    memswap_limit: 128M
     networks:
       - monitoring
     restart: unless-stopped
@@ -108,6 +124,9 @@ services:
     networks:
       - monitoring
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    memswap_limit: 256M
     logging: *jsonlog
     deploy:
       resources:
@@ -120,6 +139,13 @@ services:
     volumes:
       - ./platform/loki/loki.yml:/etc/loki/loki.yml:ro
       - loki-data:/loki
+    memswap_limit: 1024M
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3100/ready"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     networks:
       - monitoring
     restart: unless-stopped
@@ -145,6 +171,9 @@ services:
     networks:
       - monitoring
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    memswap_limit: 256M
     logging: *jsonlog
     deploy:
       resources:
@@ -164,11 +193,13 @@ services:
       monitoring:
       chat_data:
     labels:
+      monitoring.project: monitoring
       monitoring.service: postgres
       monitoring.dns: postgres-exporter
       monitoring.metrics.port: "9187"
       monitoring.metrics.path: /metrics
       monitoring.name: База чата
+    memswap_limit: 128M
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -211,6 +242,7 @@ services:
     networks:
       - monitoring
     labels:
+      monitoring.project: monitoring
       monitoring.service: grafana
       monitoring.dns: grafana
       monitoring.probe: http://grafana:3000/api/health
@@ -219,9 +251,20 @@ services:
       monitoring.summary: "Страницы мониторинга не открываются."
       monitoring.resolved: "Страницы мониторинга снова открываются."
     depends_on:
-      - prometheus
-      - loki
+      prometheus:
+        condition: service_healthy
+      loki:
+        condition: service_healthy
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    memswap_limit: 512M
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
     logging: *jsonlog
     deploy:
       resources:

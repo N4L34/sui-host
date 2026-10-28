@@ -25,4 +25,4 @@
 
 Человеку: [архитектура](docs/architecture.md), [сервисы](docs/services.md), [эксплуатация](docs/work.md), [подключение сервиса](docs/new-service.md).
 
-Агенту перед любой командой на узле: `AGENTS.md`.
+Агенту перед любой командой на узле: `AGENTS.md`. Проверки и выкладка: [эталон](docs/standard.md), команда `scripts/ci.sh`.

@@ -1,0 +1,10 @@
+extends: default
+ignore: |
+  runtime/
+rules:
+  line-length: disable
+  truthy:
+    check-keys: false
+  comments: disable
+  document-start: disable
+  comments-indentation: disable

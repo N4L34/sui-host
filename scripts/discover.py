@@ -3,7 +3,8 @@
 
 Labels on a container that sits on the docker network `monitoring`:
 
-  monitoring.service        stable name
+  monitoring.project        Compose project. Default: com.docker.compose.project
+  monitoring.service        stable name inside that project
   monitoring.dns            name Prometheus uses on that network
   monitoring.probe          comma-separated HTTP URLs
   monitoring.metrics.port   port to scrape
@@ -12,6 +13,9 @@ Labels on a container that sits on the docker network `monitoring`:
   monitoring.name           short name for friends
   monitoring.summary        firing text
   monitoring.resolved       resolved text
+
+Two Compose projects may use the same service name. The series key is
+`project/service`, so they stay separate targets.
 
 platform/services.json lists containers created before those labels existed.
 A label on the container wins. A page-worthy record stays for six hours after
@@ -32,6 +36,7 @@ STATE_PATH = ROOT / "runtime" / "discover-state.json"
 OUT_DIR = ROOT / "runtime" / "file_sd"
 REMEMBER_S = 6 * 3600
 NETWORK = "monitoring"
+COMPOSE_PROJECT = "com.docker.compose.project"
 
 
 def split_probes(value: str | None) -> list[str]:
@@ -71,6 +76,25 @@ def _looks_like_id(value: str) -> bool:
     return len(value) >= 12 and all(c in "0123456789abcdef" for c in value)
 
 
+def project_name(labels: dict, inv: dict) -> str:
+    for value in (
+        labels.get("monitoring.project"),
+        labels.get(COMPOSE_PROJECT),
+        inv.get("project"),
+    ):
+        if value:
+            return str(value)
+    return ""
+
+
+def record_key(rec: dict) -> str:
+    project = rec.get("project") or ""
+    service = rec["service"]
+    if project:
+        return f"{project}/{service}"
+    return service
+
+
 def dns_name(container: dict, labels: dict, inv: dict, service: str) -> str:
     if labels.get("monitoring.dns"):
         return str(labels["monitoring.dns"])
@@ -108,6 +132,7 @@ def record_from(container: dict, inv_by_name: dict) -> dict | None:
     ip = str(((nets.get(NETWORK) or {}).get("IPAddress")) or "")
     running = bool((container.get("State") or {}).get("Running"))
     return {
+        "project": project_name(labels, inv),
         "service": service,
         "dns": dns_name(container, labels, inv, service),
         "probes": probes,
@@ -156,8 +181,10 @@ def build(records: dict[str, dict], state: dict, now: float) -> tuple[list, list
             new_state[service] = rec
     probes: list[dict] = []
     metrics: list[dict] = []
-    for service, rec in sorted(new_state.items()):
-        labels: dict[str, str] = {"service": service}
+    for key, rec in sorted(new_state.items()):
+        labels: dict[str, str] = {"service": str(rec.get("service") or key)}
+        if rec.get("project"):
+            labels["project"] = rec["project"]
         if rec.get("alert"):
             labels["monitoring_alert"] = rec["alert"]
         if rec.get("name"):
@@ -168,13 +195,14 @@ def build(records: dict[str, dict], state: dict, now: float) -> tuple[list, list
             labels["monitoring_resolved"] = rec["resolved"]
         for url in rec.get("probes") or []:
             probes.append({"targets": [url], "labels": dict(labels)})
-        live = records.get(service)
+        live = records.get(key)
         if live and live.get("running") and live.get("ip") and live.get("metrics_port"):
             metrics.append(
                 {
                     "targets": [f"{live['dns']}:{live['metrics_port']}"],
                     "labels": {
-                        "service": service,
+                        "service": str(live.get("service") or key),
+                        **({"project": live["project"]} if live.get("project") else {}),
                         "metrics_path": live.get("metrics_path") or "/metrics",
                     },
                 }
@@ -202,7 +230,8 @@ def main() -> None:
             found.append(rec)
     records: dict[str, dict] = {}
     for rec in found:
-        records[rec["service"]] = prefer(records.get(rec["service"]), rec)
+        key = record_key(rec)
+        records[key] = prefer(records.get(key), rec)
     state: dict = {}
     if STATE_PATH.is_file():
         try:
@@ -220,6 +249,7 @@ def self_test() -> None:
     now = 1_000_000.0
     inventory = {
         "chat-synapse-1": {
+            "project": "chat",
             "service": "synapse",
             "dns": "synapse",
             "probes": [
@@ -278,12 +308,48 @@ def self_test() -> None:
         "State": {"Running": False},
         "NetworkSettings": {"Networks": {}},
     }
+    grafana["Config"]["Labels"][COMPOSE_PROJECT] = "monitoring"
     records: dict[str, dict] = {}
     for item in (rec, record_from(grafana, {}), record_from(demo, {})):
         assert item is not None
-        records[item["service"]] = prefer(records.get(item["service"]), item)
+        records[record_key(item)] = prefer(records.get(record_key(item)), item)
+    same_name = {
+        "Name": "/billing-api-1",
+        "Config": {
+            "Labels": {
+                COMPOSE_PROJECT: "billing",
+                "monitoring.service": "api",
+                "monitoring.probe": "http://billing-api:8080/health",
+            }
+        },
+        "State": {"Running": True},
+        "NetworkSettings": {"Networks": {NETWORK: {"IPAddress": "172.30.0.9"}}},
+    }
+    other_name = {
+        "Name": "/shop-api-1",
+        "Config": {
+            "Labels": {
+                COMPOSE_PROJECT: "shop",
+                "monitoring.service": "api",
+                "monitoring.probe": "http://shop-api:8080/health",
+            }
+        },
+        "State": {"Running": True},
+        "NetworkSettings": {"Networks": {NETWORK: {"IPAddress": "172.30.0.10"}}},
+    }
+    left = record_from(same_name, {})
+    right = record_from(other_name, {})
+    assert left is not None and right is not None
+    assert record_key(left) != record_key(right)
+    records[record_key(left)] = left
+    records[record_key(right)] = right
     probes, metrics, state = build(records, {}, now)
     assert any(item["targets"] == ["http://synapse:8008/health"] for item in probes)
+    assert any(
+        item["labels"].get("project") == "chat" and item["labels"]["service"] == "synapse"
+        for item in probes
+    )
+    assert sum(1 for item in probes if item["labels"]["service"] == "api") == 2
     assert any(
         item["targets"] == ["synapse:9090"] and item["labels"]["metrics_path"] == "/_synapse/metrics"
         for item in metrics
