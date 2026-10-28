@@ -10,6 +10,9 @@ x-log: &jsonlog
 services:
   prometheus:
     image: ${PROMETHEUS_IMAGE}
+    pull_policy: missing
+    user: nobody
+    init: true
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
@@ -42,6 +45,9 @@ services:
 
   alertmanager:
     image: ${ALERTMANAGER_IMAGE}
+    pull_policy: missing
+    user: nobody
+    init: true
     command:
       - --config.file=/etc/alertmanager/alertmanager.yml
       - --storage.path=/alertmanager
@@ -72,11 +78,22 @@ services:
 
   blackbox:
     image: ${BLACKBOX_IMAGE}
+    pull_policy: missing
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
     command:
       - --config.file=/etc/blackbox/blackbox.yml
     volumes:
       - ./platform/blackbox/blackbox.yml:/etc/blackbox/blackbox.yml:ro
     memswap_limit: 128M
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:9115/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     networks:
       - monitoring
     restart: unless-stopped
@@ -90,6 +107,12 @@ services:
 
   node-exporter:
     image: ${NODE_EXPORTER_IMAGE}
+    pull_policy: missing
+    user: nobody
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
     command:
       - --path.rootfs=/host
       - --path.procfs=/host/proc
@@ -101,6 +124,12 @@ services:
       - /:/host:ro,rslave
       - ${TEXTFILE}:/textfile:ro
     memswap_limit: 128M
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:9100/metrics"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     networks:
       - monitoring
     restart: unless-stopped
@@ -114,6 +143,8 @@ services:
 
   cadvisor:
     image: ${CADVISOR_IMAGE}
+    pull_policy: missing
+    init: true
     privileged: true
     volumes:
       - /:/rootfs:ro
@@ -127,6 +158,12 @@ services:
     security_opt:
       - no-new-privileges:true
     memswap_limit: 256M
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     logging: *jsonlog
     deploy:
       resources:
@@ -135,13 +172,16 @@ services:
 
   loki:
     image: ${LOKI_IMAGE}
+    pull_policy: missing
+    user: "10001"
+    init: true
     command: ["-config.file=/etc/loki/loki.yml"]
     volumes:
       - ./platform/loki/loki.yml:/etc/loki/loki.yml:ro
       - loki-data:/loki
     memswap_limit: 1024M
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3100/ready"]
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3100/loki/api/v1/status/buildinfo"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -159,6 +199,8 @@ services:
 
   alloy:
     image: ${ALLOY_IMAGE}
+    pull_policy: missing
+    init: true
     command:
       - run
       - --server.http.listen-addr=0.0.0.0:12345
@@ -182,7 +224,12 @@ services:
 
   postgres-exporter:
     image: ${POSTGRES_EXPORTER_IMAGE}
+    pull_policy: missing
     user: "0:0"
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
     environment:
       DATA_SOURCE_URI: postgres:5432/synapse?sslmode=disable
       DATA_SOURCE_USER: synapse
@@ -200,6 +247,12 @@ services:
       monitoring.metrics.path: /metrics
       monitoring.name: База чата
     memswap_limit: 128M
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:9187/metrics"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -211,7 +264,9 @@ services:
 
   grafana:
     image: ${GRAFANA_IMAGE}
+    pull_policy: missing
     user: "0:0"
+    init: true
     entrypoint:
       - /bin/sh
       - -c
