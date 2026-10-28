@@ -1,0 +1,11 @@
+[Unit]
+Description=Refresh Prometheus targets every 15 seconds
+
+[Timer]
+OnBootSec=20
+OnUnitActiveSec=15
+AccuracySec=1s
+Persistent=true
+
+[Install]
+WantedBy=timers.target

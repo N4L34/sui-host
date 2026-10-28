@@ -1,0 +1,580 @@
+{
+  "title": "Свои",
+  "uid": "svoi",
+  "description": "Свободные ресурсы sui и всё, что Docker на нём запустил. Новый контейнер появляется сам.",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 2,
+  "refresh": "30s",
+  "graphTooltip": 1,
+  "tags": ["svoi"],
+  "time": { "from": "now-6h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "container",
+        "label": "Контейнер",
+        "type": "query",
+        "datasource": "Prometheus",
+        "definition": "label_values(container_memory_working_set_bytes{name!=\"\"}, name)",
+        "query": {
+          "query": "label_values(container_memory_working_set_bytes{name!=\"\"}, name)",
+          "refId": "A"
+        },
+        "includeAll": true,
+        "allValue": ".+",
+        "multi": true,
+        "refresh": 2,
+        "sort": 1,
+        "current": { "text": "All", "value": "$__all" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "row",
+      "id": 1,
+      "title": "Машина",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "id": 2,
+      "title": "Свободная память",
+      "description": "Столько ещё можно отдать новому контейнеру, не трогая диск под кэш.",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 5, "w": 4, "x": 0, "y": 1 },
+      "targets": [{ "expr": "node_memory_MemAvailable_bytes", "refId": "A" }],
+      "options": { "colorMode": "background", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 1073741824 },
+              { "color": "green", "value": 3221225472 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "id": 3,
+      "title": "Память занята",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 5, "w": 4, "x": 4, "y": 1 },
+      "targets": [{ "expr": "node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes", "refId": "A" }],
+      "options": { "colorMode": "none", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "bytes" } }
+    },
+    {
+      "type": "stat",
+      "id": 4,
+      "title": "CPU занят",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 5, "w": 4, "x": 8, "y": 1 },
+      "targets": [{ "expr": "1 - avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m]))", "refId": "A" }],
+      "options": { "colorMode": "background", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.5 },
+              { "color": "red", "value": 0.8 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "id": 5,
+      "title": "Диск свободен",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 5, "w": 4, "x": 12, "y": 1 },
+      "targets": [{ "expr": "node_filesystem_avail_bytes{mountpoint=\"/\",fstype=~\"ext4|xfs|btrfs|zfs\"} / node_filesystem_size_bytes{mountpoint=\"/\",fstype=~\"ext4|xfs|btrfs|zfs\"}", "refId": "A" }],
+      "options": { "colorMode": "background", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 0.15 },
+              { "color": "green", "value": 0.3 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "id": 6,
+      "title": "Нагрузка 1м",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 5, "w": 4, "x": 16, "y": 1 },
+      "targets": [{ "expr": "node_load1", "refId": "A" }],
+      "options": { "colorMode": "none", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 2 } }
+    },
+    {
+      "type": "stat",
+      "id": 7,
+      "title": "Аптайм",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 5, "w": 4, "x": 20, "y": 1 },
+      "targets": [{ "expr": "time() - node_boot_time_seconds", "refId": "A" }],
+      "options": { "colorMode": "none", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+    {
+      "type": "timeseries",
+      "id": 8,
+      "title": "CPU по режимам",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 6 },
+      "targets": [{ "expr": "avg by (mode) (rate(node_cpu_seconds_total{mode!=\"idle\"}[5m]))", "legendFormat": "{{mode}}", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "percentunit", "custom": { "fillOpacity": 30, "stacking": { "mode": "normal" } } } }
+    },
+    {
+      "type": "timeseries",
+      "id": 9,
+      "title": "Память",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 6 },
+      "targets": [
+        { "expr": "node_memory_MemTotal_bytes - node_memory_MemFree_bytes - node_memory_Buffers_bytes - node_memory_Cached_bytes - node_memory_SReclaimable_bytes", "legendFormat": "приложения", "refId": "A" },
+        { "expr": "node_memory_Buffers_bytes + node_memory_Cached_bytes + node_memory_SReclaimable_bytes", "legendFormat": "кэш", "refId": "B" },
+        { "expr": "node_memory_MemFree_bytes", "legendFormat": "свободно", "refId": "C" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "fillOpacity": 25, "stacking": { "mode": "normal" } } } }
+    },
+    {
+      "type": "timeseries",
+      "id": 10,
+      "title": "Сеть, кроме loopback и docker",
+      "description": "Новая сетевая карта появится сама. tailscale0 здесь тоже есть.",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 6 },
+      "targets": [
+        { "expr": "rate(node_network_receive_bytes_total{device!~\"lo|docker.*|veth.*|br-.*\"}[5m])", "legendFormat": "in {{device}}", "refId": "A" },
+        { "expr": "rate(node_network_transmit_bytes_total{device!~\"lo|docker.*|veth.*|br-.*\"}[5m])", "legendFormat": "out {{device}}", "refId": "B" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "Bps" } }
+    },
+    {
+      "type": "timeseries",
+      "id": 11,
+      "title": "Свободное место на дисках",
+      "description": "Новый раздел появится отдельной линией.",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 7, "w": 24, "x": 0, "y": 14 },
+      "targets": [{ "expr": "node_filesystem_avail_bytes{fstype=~\"ext4|xfs|btrfs|zfs\",mountpoint!~\"/boot.*|/run.*\"}", "legendFormat": "{{mountpoint}} {{device}}", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "bytes" } }
+    },
+    {
+      "type": "row",
+      "id": 12,
+      "title": "Контейнеры",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 21 },
+      "panels": []
+    },
+    {
+      "type": "text",
+      "id": 13,
+      "gridPos": { "h": 3, "w": 24, "x": 0, "y": 22 },
+      "options": {
+        "mode": "markdown",
+        "content": "Список не зашит. cAdvisor смотрит сокет Docker, поэтому **новый контейнер на этой машине появляется здесь сам**, без правки дашборда. Логи снизу так же: Alloy подхватывает каждый контейнер. Свои счётчики приложения (не CPU и не память) добавляются строкой в `prometheus.yml` на внутренний порт. На хост этот порт не публикуют."
+      }
+    },
+    {
+      "type": "stat",
+      "id": 14,
+      "title": "Контейнеров",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 25 },
+      "targets": [{ "expr": "count(container_memory_working_set_bytes{name!=\"\"})", "refId": "A" }],
+      "options": { "colorMode": "none", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 } }
+    },
+    {
+      "type": "stat",
+      "id": 15,
+      "title": "Их память",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 25 },
+      "targets": [{ "expr": "sum(container_memory_working_set_bytes{name!=\"\"})", "refId": "A" }],
+      "options": { "colorMode": "none", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "bytes" } }
+    },
+    {
+      "type": "stat",
+      "id": 16,
+      "title": "Их CPU",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 25 },
+      "targets": [{ "expr": "sum(rate(container_cpu_usage_seconds_total{cpu=\"total\", name!=\"\"}[5m]))", "refId": "A" }],
+      "options": { "colorMode": "none", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 2 } }
+    },
+    {
+      "type": "table",
+      "id": 17,
+      "title": "Кто сколько памяти ест",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 25 },
+      "targets": [{ "expr": "sort_desc(container_memory_working_set_bytes{name!=\"\"})", "instant": true, "format": "table", "refId": "A" }],
+      "options": { "showHeader": true, "cellHeight": "sm", "footer": { "show": false } },
+      "fieldConfig": {
+        "defaults": { "unit": "bytes" },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Value" }, "properties": [{ "id": "unit", "value": "bytes" }, { "id": "displayName", "value": "Память" }] },
+          { "matcher": { "id": "byName", "options": "name" }, "properties": [{ "id": "displayName", "value": "Контейнер" }] }
+        ]
+      }
+    },
+    {
+      "type": "timeseries",
+      "id": 18,
+      "title": "CPU контейнеров",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 33 },
+      "targets": [{ "expr": "sum by (name) (rate(container_cpu_usage_seconds_total{cpu=\"total\", name!=\"\", name=~\"$container\"}[5m]))", "legendFormat": "{{name}}", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 3 } }
+    },
+    {
+      "type": "timeseries",
+      "id": 19,
+      "title": "Память контейнеров",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 33 },
+      "targets": [{ "expr": "container_memory_working_set_bytes{name!=\"\", name=~\"$container\"}", "legendFormat": "{{name}}", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "bytes" } }
+    },
+    {
+      "type": "timeseries",
+      "id": 20,
+      "title": "Сеть контейнеров",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 41 },
+      "targets": [
+        { "expr": "sum by (name) (rate(container_network_receive_bytes_total{name!=\"\", name=~\"$container\"}[5m]))", "legendFormat": "in {{name}}", "refId": "A" },
+        { "expr": "sum by (name) (rate(container_network_transmit_bytes_total{name!=\"\", name=~\"$container\"}[5m]))", "legendFormat": "out {{name}}", "refId": "B" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "Bps" } }
+    },
+    {
+      "type": "timeseries",
+      "id": 21,
+      "title": "Перезапуски за час",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 41 },
+      "targets": [{ "expr": "sum by (name) (changes(container_start_time_seconds{name!=\"\", name=~\"$container\"}[1h]))", "legendFormat": "{{name}}", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 } }
+    },
+    {
+      "type": "row",
+      "id": 22,
+      "title": "Чат",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 49 },
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "id": 23,
+      "title": "Synapse",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 50 },
+      "targets": [{ "expr": "up{job=\"sui-metrics\",service=\"synapse\"}", "refId": "A" }],
+      "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "молчит", "color": "red" }, "1": { "text": "жив", "color": "green" } } }
+          ],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] }
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "id": 24,
+      "title": "Пробы чата",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 50 },
+      "targets": [{ "expr": "min(probe_success{job=\"sui-probe\",service=\"synapse\"})", "refId": "A" }],
+      "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 1,
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] }
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "id": 25,
+      "title": "Запросы в полёте",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 50 },
+      "targets": [{ "expr": "sum(synapse_http_server_in_flight_requests_count) or vector(0)", "refId": "A" }],
+      "options": { "colorMode": "none", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 } }
+    },
+    {
+      "type": "stat",
+      "id": 26,
+      "title": "Активные за сутки",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 50 },
+      "targets": [{ "expr": "synapse_admin_daily_active_users", "refId": "A" }],
+      "options": { "colorMode": "none", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 } }
+    },
+    {
+      "type": "stat",
+      "id": 27,
+      "title": "Часов с бэкапа",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 50 },
+      "targets": [{ "expr": "(time() - messenger_last_backup_success_timestamp) / 3600", "refId": "A" }],
+      "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "h",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 2 },
+              { "color": "red", "value": 26 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "id": 28,
+      "title": "Память Synapse",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 50 },
+      "targets": [{ "expr": "process_resident_memory_bytes{job=\"sui-metrics\",service=\"synapse\"}", "refId": "A" }],
+      "options": { "colorMode": "none", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "bytes" } }
+    },
+    {
+      "type": "timeseries",
+      "id": 29,
+      "title": "Ответы Synapse",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 54 },
+      "targets": [{ "expr": "sum by (method, code) (rate(synapse_http_server_responses_total[5m]))", "legendFormat": "{{method}} {{code}}", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "reqps" } }
+    },
+    {
+      "type": "timeseries",
+      "id": 30,
+      "title": "События в базу",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 54 },
+      "targets": [{ "expr": "sum(rate(synapse_storage_events_persisted_events_total[5m]))", "legendFormat": "события/с", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "reqps" } }
+    },
+    {
+      "type": "timeseries",
+      "id": 31,
+      "title": "Пуши",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 54 },
+      "targets": [
+        { "expr": "sum(rate(synapse_http_httppusher_http_pushes_processed_total[5m]))", "legendFormat": "ушли", "refId": "A" },
+        { "expr": "sum(rate(synapse_http_httppusher_http_pushes_failed_total[5m]))", "legendFormat": "ошибки", "refId": "B" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps" } }
+    },
+    {
+      "type": "timeseries",
+      "id": 32,
+      "title": "Пробы",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 7, "w": 24, "x": 0, "y": 62 },
+      "targets": [{ "expr": "probe_success", "legendFormat": "{{job}} {{instance}}", "refId": "A" }],
+      "fieldConfig": { "defaults": { "min": 0, "max": 1, "custom": { "fillOpacity": 10 } } }
+    },
+    {
+      "type": "row",
+      "id": 33,
+      "title": "Звонки",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 69 },
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "id": 34,
+      "title": "LiveKit",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 70 },
+      "targets": [{ "expr": "up{job=\"sui-metrics\",service=\"livekit\"}", "refId": "A" }],
+      "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "молчит", "color": "red" }, "1": { "text": "жив", "color": "green" } } }
+          ],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] }
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "id": 35,
+      "title": "Комнаты",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 4, "w": 5, "x": 4, "y": 70 },
+      "targets": [{ "expr": "sum(livekit_room_total)", "refId": "A" }],
+      "options": { "colorMode": "none", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 } }
+    },
+    {
+      "type": "stat",
+      "id": 36,
+      "title": "Участники",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 4, "w": 5, "x": 9, "y": 70 },
+      "targets": [{ "expr": "sum(livekit_participant_total)", "refId": "A" }],
+      "options": { "colorMode": "none", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 } }
+    },
+    {
+      "type": "stat",
+      "id": 37,
+      "title": "Дорожки",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 4, "w": 5, "x": 14, "y": 70 },
+      "targets": [{ "expr": "sum(livekit_track_published_total) or vector(0)", "refId": "A" }],
+      "options": { "colorMode": "none", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 } }
+    },
+    {
+      "type": "stat",
+      "id": 38,
+      "title": "Подписки",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 4, "w": 5, "x": 19, "y": 70 },
+      "targets": [{ "expr": "sum(livekit_track_subscribed_total) or vector(0)", "refId": "A" }],
+      "options": { "colorMode": "none", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 } }
+    },
+    {
+      "type": "timeseries",
+      "id": 39,
+      "title": "Состояние WebRTC",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 74 },
+      "targets": [{ "expr": "sum by (transport, state) (rate(livekit_peer_connection_state[5m]))", "legendFormat": "{{transport}} {{state}}", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "reqps" } }
+    },
+    {
+      "type": "row",
+      "id": 40,
+      "title": "База",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 82 },
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "id": 41,
+      "title": "Postgres",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 83 },
+      "targets": [{ "expr": "pg_up", "refId": "A" }],
+      "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "молчит", "color": "red" }, "1": { "text": "жив", "color": "green" } } }
+          ],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] }
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "id": 42,
+      "title": "Соединения",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 4, "w": 5, "x": 4, "y": 83 },
+      "targets": [{ "expr": "sum(pg_stat_activity_count)", "refId": "A" }],
+      "options": { "colorMode": "none", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 } }
+    },
+    {
+      "type": "stat",
+      "id": 43,
+      "title": "Размер базы",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 4, "w": 5, "x": 9, "y": 83 },
+      "targets": [{ "expr": "pg_database_size_bytes{datname=\"synapse\"}", "refId": "A" }],
+      "options": { "colorMode": "none", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "bytes" } }
+    },
+    {
+      "type": "stat",
+      "id": 44,
+      "title": "Попадание в кэш",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 4, "w": 5, "x": 14, "y": 83 },
+      "targets": [{ "expr": "sum(rate(pg_stat_database_blks_hit{datname=\"synapse\"}[5m])) / clamp_min(sum(rate(pg_stat_database_blks_hit{datname=\"synapse\"}[5m])) + sum(rate(pg_stat_database_blks_read{datname=\"synapse\"}[5m])), 0.001)", "refId": "A" }],
+      "options": { "colorMode": "none", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1 } }
+    },
+    {
+      "type": "stat",
+      "id": 45,
+      "title": "Транзакции/с",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 4, "w": 5, "x": 19, "y": 83 },
+      "targets": [{ "expr": "sum(rate(pg_stat_database_xact_commit{datname=\"synapse\"}[5m]))", "refId": "A" }],
+      "options": { "colorMode": "none", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "reqps" } }
+    },
+    {
+      "type": "row",
+      "id": 46,
+      "title": "Ошибки в логах",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 87 },
+      "panels": []
+    },
+    {
+      "type": "logs",
+      "id": 47,
+      "title": "error / panic / fatal",
+      "datasource": "Loki",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 88 },
+      "targets": [{ "expr": "{container=~\".+\"} |~ \"(?i)error|panic|fatal\"", "refId": "A" }],
+      "options": { "showTime": true, "showLabels": true, "wrapLogMessage": true, "sortOrder": "Descending", "dedupStrategy": "none", "enableLogDetails": true }
+    }
+  ]
+}

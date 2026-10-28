@@ -1,0 +1,131 @@
+groups:
+  - name: sui
+    rules:
+      - alert: HomeserverDown
+        expr: probe_success{job="sui-probe", service="synapse"} == 0
+        for: 2m
+        labels:
+          severity: page
+        annotations:
+          summary: "Чат не отвечает уже больше 2 минут."
+          resolved: "Чат снова отвечает."
+
+      - alert: ProbeListEmpty
+        expr: absent(probe_success{job="sui-probe", service="synapse"})
+        for: 5m
+        labels:
+          severity: page
+        annotations:
+          summary: "Проверка чата пропала из мониторинга."
+          resolved: "Проверка чата снова в мониторинге."
+
+      - alert: ServiceDown
+        expr: probe_success{job="sui-probe", sui_alert="page", service!="synapse"} == 0
+        for: 2m
+        labels:
+          severity: page
+        annotations:
+          summary: "{{ if $labels.sui_summary }}{{ $labels.sui_summary }}{{ else }}{{ $labels.sui_name }} не отвечает.{{ end }}"
+          resolved: "{{ if $labels.sui_resolved }}{{ $labels.sui_resolved }}{{ else }}{{ $labels.sui_name }} снова отвечает.{{ end }}"
+
+      - alert: ServiceRestarting
+        expr: changes(container_start_time_seconds{container_label_sui_alert="page"}[15m]) > 3
+        for: 2m
+        labels:
+          severity: page
+        annotations:
+          summary: >-
+            {{ if $labels.container_label_sui_name }}{{ $labels.container_label_sui_name }}
+            несколько раз перезапустился.{{ else }}Один из сервисов несколько раз
+            перезапустился.{{ end }}
+          resolved: >-
+            {{ if $labels.container_label_sui_name }}{{ $labels.container_label_sui_name }}
+            больше не перезапускается.{{ else }}Перезапуски сервиса
+            прекратились.{{ end }}
+
+      - alert: PlatformDown
+        expr: up{job="platform"} == 0
+        for: 2m
+        labels:
+          severity: page
+        annotations:
+          summary: "Мониторинг сам себя не видит."
+          resolved: "Мониторинг снова видит свои части."
+
+      - alert: HostMetricsDown
+        expr: up{job=~"node|cadvisor"} == 0
+        for: 5m
+        labels:
+          severity: page
+        annotations:
+          summary: "Мониторинг машины остановился."
+          resolved: "Мониторинг машины снова идёт."
+
+      - alert: DiskSpaceLow
+        expr: |
+          (
+            node_filesystem_avail_bytes{fstype=~"ext4|xfs|btrfs|zfs"}
+            /
+            node_filesystem_size_bytes{fstype=~"ext4|xfs|btrfs|zfs"}
+          ) < 0.15
+          and node_filesystem_size_bytes > 0
+        for: 10m
+        labels:
+          severity: page
+        annotations:
+          summary: "Мало места на диске: свободно меньше 15%."
+          resolved: "Места на диске снова достаточно."
+
+      - alert: BackupStale
+        expr: (time() - messenger_last_backup_success_timestamp) > 26 * 3600
+        for: 15m
+        labels:
+          severity: page
+        annotations:
+          summary: "Локальная копия старше 26 часов."
+          resolved: "Локальная копия снова свежая."
+
+      - alert: OffsiteBackupStale
+        expr: (time() - messenger_last_offsite_backup_success_timestamp) > 26 * 3600
+        for: 15m
+        labels:
+          severity: page
+        annotations:
+          summary: "Копия наружу старше 26 часов."
+          resolved: "Копия наружу снова свежая."
+
+      - alert: OomKill
+        expr: increase(node_vmstat_oom_kill[15m]) > 0
+        for: 2m
+        labels:
+          severity: page
+        annotations:
+          summary: "Ядро убило процесс по памяти."
+          resolved: "Новых аварийных остановок по памяти нет."
+
+      - alert: MatrixPrefixDown
+        expr: messenger_matrix_prefix_ok == 0
+        for: 2m
+        labels:
+          severity: page
+        annotations:
+          summary: "С телефона чат открывается не на Matrix."
+          resolved: "Адрес чата снова открывает Matrix."
+
+      - alert: CallsNotReady
+        expr: messenger_calls_ready == 0
+        for: 5m
+        labels:
+          severity: page
+        annotations:
+          summary: "Звонки включены, но к ним не подключиться."
+          resolved: "Звонки снова доступны."
+
+      - alert: EdgeProbeStale
+        expr: (time() - messenger_edge_probe_timestamp) > 300
+        for: 5m
+        labels:
+          severity: page
+        annotations:
+          summary: "Проверка адреса чата остановилась."
+          resolved: "Проверка адреса чата снова идёт."

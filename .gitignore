@@ -1,5 +1,6 @@
 .env
 secrets/
+runtime/
 *.sqlite
 *.log
 .DS_Store

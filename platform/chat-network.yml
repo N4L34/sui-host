@@ -1,0 +1,73 @@
+# Installed on the appliance as
+# /home/sui/tailnet-messenger/deploy/compose.platform-net.yml
+# scripts/lib.sh adds this file when it is present.
+# The next chat recreate then joins network sui. Do not apply it with make up
+# while a call is up: compose would recreate LiveKit.
+services:
+  synapse:
+    networks:
+      edge:
+      data:
+      sui:
+        aliases: [synapse]
+    labels:
+      sui.service: synapse
+      sui.dns: synapse
+      sui.probe: "http://synapse:8008/health,http://synapse:8008/_matrix/client/versions"
+      sui.metrics.port: "9090"
+      sui.metrics.path: /_synapse/metrics
+      sui.alert: page
+      sui.name: Чат
+      sui.summary: "Чат не отвечает уже больше 2 минут."
+      sui.resolved: "Чат снова отвечает."
+
+  element-web:
+    networks:
+      edge:
+      sui:
+        aliases: [element-web]
+    labels:
+      sui.service: element-web
+      sui.dns: element-web
+      sui.probe: http://element-web:80/
+      sui.name: Element
+
+  livekit:
+    networks:
+      edge:
+      sui:
+        aliases: [livekit]
+    labels:
+      sui.service: livekit
+      sui.dns: livekit
+      sui.probe: http://livekit:7880/
+      sui.metrics.port: "6789"
+      sui.metrics.path: /metrics
+      sui.name: Звонки
+
+  lk-jwt:
+    networks:
+      edge:
+      sui:
+        aliases: [lk-jwt]
+    labels:
+      sui.service: lk-jwt
+      sui.dns: lk-jwt
+      sui.probe: http://lk-jwt:8080/healthz
+      sui.name: Токены звонка
+
+  calls-proxy:
+    networks:
+      edge:
+      sui:
+        aliases: [calls-proxy]
+    labels:
+      sui.service: calls-proxy
+      sui.dns: calls-proxy
+      sui.probe: http://calls-proxy:80/
+      sui.name: Прокси звонков
+
+networks:
+  sui:
+    external: true
+    name: sui

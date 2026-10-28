@@ -8,7 +8,9 @@
 | --- | --- |
 | `docker.service` | контейнеры, включена при загрузке |
 | `tailscaled.service` | сеть `100.64.0.10` и Serve |
-| `svoi.service` | поднимает Compose чата из `/home/sui/tailnet-messenger` |
+| `svoi.service` | поднимает Compose чата из `/home/sui/tailnet-messenger`, без стека наблюдения |
+| `sui-platform.service` | поднимает метрики, журнал и алерты из `/home/sui/sui-host` |
+| `sui-discover.timer` | раз в 15 секунд обновляет цели Prometheus по меткам контейнеров |
 | `svoi-backup.timer` | снимок чата раз в час |
 | `svoi-edge-probe.timer` | раз в минуту проверяет, что с хвоста Tailscale чат и звонки отвечают |
 | `svoi-telegram-bot.service` | команды людей и комнат в личке Telegram |
@@ -45,23 +47,23 @@ LiveKit оставляют на `v1.13.10`. Образ `v1.9.0` не умел м
 
 Учётные записи Matrix заводит хозяин или бот. Открытой регистрации нет. Сейчас есть `@operator` (админ), `@sergon`, `@elina`, `@serzh` (это не Сергон), `@ping` (проверка, не друг), `@svoibot` (служебный админ бота). Пароли в этот репозиторий не входят. `@operator` и `@svoibot` не удаляют и не сбрасывают.
 
-## Наблюдение
+## Платформа
 
-Те же контейнеры проекта `svoi`. Ночью в Telegram уходит только то, из-за чего другу ломается чат.
+Отдельный проект Compose `sui`, каталог `/home/sui/sui-host`, служба `sui-platform.service`. Цели Prometheus обновляет `sui-discover.timer`. Образы те же, что были у наблюдения внутри чата. История графиков и журнала лежит в прежних томах `svoi_prom-data`, `svoi_grafana-data`, `svoi_loki-data`, `svoi_alert-data`, `svoi_alloy-data`.
 
 | Контейнер | Образ | Роль |
 | --- | --- | --- |
-| `svoi-grafana-1` | `grafana/grafana:12.0.2` | страницы, `127.0.0.1:3000` |
-| `svoi-prometheus-1` | `prom/prometheus:v3.4.0` | метрики, `127.0.0.1:9091` |
-| `svoi-alertmanager-1` | `prom/alertmanager:v0.28.0` | ночные алерты |
-| `svoi-loki-1` | `grafana/loki:3.4.2` | журнал |
-| `svoi-alloy-1` | `grafana/alloy:v1.8.1` | забирает логи контейнеров |
-| `svoi-cadvisor-1` | `ghcr.io/google/cadvisor:v0.60.6` | память, CPU, перезапуски |
-| `svoi-node-exporter-1` | `prom/node-exporter:v1.9.0` | диск и машина |
-| `svoi-postgres-exporter-1` | `prometheuscommunity/postgres-exporter:v0.17.1` | база |
-| `svoi-blackbox-1` | `prom/blackbox-exporter:v0.25.0` | HTTP-проверки внутри сети |
+| `sui-grafana-1` | `grafana/grafana:12.0.2` | страницы, `127.0.0.1:3000` |
+| `sui-prometheus-1` | `prom/prometheus:v3.4.0` | метрики, `127.0.0.1:9091` |
+| `sui-alertmanager-1` | `prom/alertmanager:v0.28.0` | ночные алерты |
+| `sui-loki-1` | `grafana/loki:3.4.2` | журнал |
+| `sui-alloy-1` | `grafana/alloy:v1.8.1` | забирает логи всех контейнеров |
+| `sui-cadvisor-1` | `ghcr.io/google/cadvisor:v0.60.6` | память, CPU, перезапуски |
+| `sui-node-exporter-1` | `prom/node-exporter:v1.9.0` | диск и машина |
+| `sui-postgres-exporter-1` | `prometheuscommunity/postgres-exporter:v0.17.1` | база чата |
+| `sui-blackbox-1` | `prom/blackbox-exporter:v0.25.0` | HTTP-проверки в сети `sui` |
 
-Ночной будильник: чат не отвечает, на диске свободно меньше 15%, локальная или внешняя копия старше 26 часов, ядро убило процесс по памяти, по корню Serve открылась не Matrix, звонки не готовы, пропала проверка края. Повтор раз в 4 часа. Обычный обрыв звонка, строка в Loki и короткий всплеск CPU туда не входят.
+Ночной будильник: чат не отвечает, сервис с меткой `sui.alert=page` не отвечает, на диске свободно меньше 15%, локальная или внешняя копия старше 26 часов, ядро убило процесс по памяти, по корню Serve открылась не Matrix, звонки не готовы, пропала проверка края, мониторинг перестал видеть сам себя. Повтор раз в 4 часа. Обычный обрыв звонка, строка в Loki и короткий всплеск CPU туда не входят. Проверка без метки `page` остаётся на графике и ночью молчит.
 
 Утренняя сводка в 08:00 по Москве, недельная в воскресенье в 11:00 по Москве. Текст для друзей, без имён контейнеров.
 

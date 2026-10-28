@@ -1,0 +1,49 @@
+{
+  "services": [
+    {
+      "match": "svoi-synapse-1",
+      "service": "synapse",
+      "dns": "synapse",
+      "name": "Чат",
+      "alert": "page",
+      "summary": "Чат не отвечает уже больше 2 минут.",
+      "resolved": "Чат снова отвечает.",
+      "probes": [
+        "http://synapse:8008/health",
+        "http://synapse:8008/_matrix/client/versions"
+      ],
+      "metrics_port": "9090",
+      "metrics_path": "/_synapse/metrics"
+    },
+    {
+      "match": "svoi-element-web-1",
+      "service": "element-web",
+      "dns": "element-web",
+      "name": "Element",
+      "probes": ["http://element-web:80/"]
+    },
+    {
+      "match": "svoi-livekit-1",
+      "service": "livekit",
+      "dns": "livekit",
+      "name": "Звонки",
+      "probes": ["http://livekit:7880/"],
+      "metrics_port": "6789",
+      "metrics_path": "/metrics"
+    },
+    {
+      "match": "svoi-lk-jwt-1",
+      "service": "lk-jwt",
+      "dns": "lk-jwt",
+      "name": "Токены звонка",
+      "probes": ["http://lk-jwt:8080/healthz"]
+    },
+    {
+      "match": "svoi-calls-proxy-1",
+      "service": "calls-proxy",
+      "dns": "calls-proxy",
+      "name": "Прокси звонков",
+      "probes": ["http://calls-proxy:80/"]
+    }
+  ]
+}
