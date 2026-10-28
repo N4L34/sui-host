@@ -1,20 +1,29 @@
 # sui
 
-Домашняя приставка SuiPlay0X1. Это один узел в Tailscale, не публичный сервер. Снаружи порта нет. Друзья попадают сюда только из tailnet.
+Платформа узла `sui`: метрики, логи, алерты и контракт подключения сервиса.
 
-Здесь платформа машины и схема того, что на ней уже работает. Код чата лежит отдельно.
+Узел `sui.example.com`, адрес `100.64.0.10`. Вход клиентов только через Tailscale Serve. Публичного слушателя нет. Код приложений в этом репозитории не лежит.
 
-| Репозиторий | Что это |
+| Репозиторий | Содержание |
 | --- | --- |
-| `N4L34/sui-host` | платформа: Prometheus, Grafana, Loki, алерты, правила нового сервиса |
-| `N4L34/tailnet-messenger` | чат «Свои»: Synapse, Element, звонки |
-| `N4L34/svoi` | заметки хозяина о чате |
+| `N4L34/sui-host` | платформа и правила подключения сервиса |
+| `N4L34/tailnet-messenger` | Matrix: Synapse, Element, звонки |
+| `N4L34/svoi` | операционные заметки по чату |
 
-## Что читать
+## Состав
+
+Проект Compose называется `sui`, каталог на узле `/home/sui/sui-host`, общая сеть Docker тоже называется `sui`.
+
+- `compose.yml` собирает Prometheus, Grafana, Loki, Alloy, Alertmanager, cAdvisor, node-exporter, blackbox-exporter и postgres-exporter.
+- `platform/` хранит конфиги и инвентарь целей, у которых ещё нет меток.
+- `scripts/discover.py` переносит метки контейнеров в file_sd Prometheus.
+- `systemd/` содержит `sui-platform.service` и `sui-discover.timer`.
+
+## Документация
 
 - [Архитектура](docs/architecture.md)
 - [Сервисы](docs/services.md)
-- [Как работать](docs/work.md)
-- [Новый сервис](docs/new-service.md)
+- [Эксплуатация](docs/work.md)
+- [Подключение сервиса](docs/new-service.md)
 
-Нейронке перед любой командой на приставке: `AGENTS.md`.
+Перед командами на узле читают `AGENTS.md`.
