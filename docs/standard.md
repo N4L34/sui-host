@@ -2,7 +2,7 @@
 
 Способ запуска решает `AGENTS.md`. Здесь набор, которым репозиторий и узел проверяются.
 
-CI один, на раннере GitHub, и на приставку не заходит. CD один: локальный раннер обновляет клон `/home/sui/sui-host` и в изменившейся папке сервиса выполняет `docker compose up -d`. Папка с одними документами контейнеры не трогает. Папка `chat` поднимается своим набором файлов Compose и не вызывает `make up`. В `main` попадают изменения с зелёным CI.
+CI один, на раннере GitHub, и на приставку не заходит. CD один: локальный раннер обновляет клон `/home/sui/sui-host` и поднимает только затронутые проекты из каталога сервисов. Папка с одними документами контейнеры не трогает. Папка `chat` поднимается своим hook и набором Compose-файлов. В `main` попадают изменения с зелёным CI.
 
 ## Срез на каждый Compose
 
@@ -16,7 +16,7 @@ CI один, на раннере GitHub, и на приставку не зах�
 
 Команда одна: `scripts/ci.sh`.
 
-Она гоняет самотест discover, сверку тегов `.env.example` с `docs/services.md`, `docker compose config`, `scripts/policy.py`, `promtool check config`, `promtool test rules`, проверку Loki и Alloy, `amtool check-config` на шаблоне, yamllint, shellcheck, actionlint и gitleaks.
+Она гоняет самотест discover и каталога сервисов, сверку тегов `.env.example` с `docs/services.md`, `docker compose config` для обычных проектов из каталога, `scripts/policy.py`, `promtool check config`, `promtool test rules`, проверку Loki и Alloy, `amtool check-config` на шаблоне, yamllint, shellcheck, actionlint и gitleaks.
 
 Политика режет `latest`, порт не на `127.0.0.1`, отсутствие лимита памяти и `memswap_limit`, чужой журнал, `privileged` не у cAdvisor, сокет Docker не у Alloy и сумму лимитов выше 8 ГиБ.
 
@@ -28,6 +28,10 @@ Renovate открывает pull request на новый тег образа, ж
 
 `deploy` стартует после успешного `ci` на `main`. Одно задание за раз. Коммит только из документации контейнеры не трогает. Диск, занятый на 85 % и больше, деплой не начинает.
 
-Команда на узле для изменившейся папки: `docker compose up -d` в `/home/sui/sui-host/<папка>`. `down` нет. Если менялся мониторинг, с приставки открываются Grafana, Prometheus и `/_matrix/client/versions`. Не сошлось — возвращаются предыдущие файлы этой папки и тот же `compose up -d`. SHA пишется в textfile node exporter, если каталог на месте.
+Список проектов CI и CD берут из `scripts/service_catalog.py`: обычная папка с `compose.yml` и одноимённым юнитом `systemd/<папка>.service` подхватывается автоматически. Нестандартный стек описывает `<проект>/deploy/project.json`: список Compose-файлов и необязательный `deploy_hook`.
+
+Перед обновлением CD сохраняет снимок управляемых файлов проекта. `rsync --delete` удаляет устаревшие файлы; секреты и runtime-каталоги исключены и сохраняются. Сгенерированный конфиг Alertmanager сохраняется отдельно. При ошибке управляемые файлы восстанавливаются из снимка, после чего повторно поднимается Compose прежней версии.
+
+Команда на узле для обычной изменившейся папки: `docker compose up -d` в `/home/sui/sui-host/<папка>`. Для чата hook сначала проверяет активный звонок. `down` нет. Если менялся мониторинг, с приставки открываются Grafana, Prometheus и `/_matrix/client/versions`. SHA пишется в textfile node exporter, если каталог на месте.
 
 Почему раннер локальный, а не вход через Tailscale с раннера GitHub: `docs/adr/0001-local-runner.md`.

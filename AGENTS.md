@@ -2,7 +2,7 @@
 
 Этот файл читают первым. Он решает, как поднять процесс. Карта узла: `docs/architecture.md`. Каркас и пример Compose: `docs/new-service.md`. Команды на живом узле: `docs/work.md`. Состав: `docs/services.md`. Проверки и выкладка: `docs/standard.md`.
 
-Узел `sui.example.com`. Один клон `/home/sui/sui-host`. Сервисы лежат папками `monitoring`, `chat`, `commands`, `avtobot`, `screen`, у каждой свой Compose и свой юнит. Живой чат запускается из `/home/sui/sui-host/chat`. Службы идут от пользователя `sui`. Секреты, пароли, токены и пароль `sudo` в git, в ответ и в память не попадают.
+Узел `sui.example.com`. Один клон `/home/sui/sui-host`. Обычные сервисные папки обнаруживаются по `compose.yml` и одноимённому юниту `systemd/<имя>.service`; нестандартный стек объявляет себя через `deploy/project.json`. Живой чат запускается из `/home/sui/sui-host/chat`. Службы идут от пользователя `sui`. Секреты, пароли, токены и пароль `sudo` в git, в ответ и в память не попадают.
 
 ## Закон
 
@@ -29,7 +29,7 @@ docker compose up --no-deps -d <сервис>
 
 Свой проект останавливают командой `docker compose stop` в его папке. `docker compose down` удаляет контейнеры. В папках сервисов её не вызывают.
 
-`git push` сам файлы на узел не выкладывает. На узел уходят названные файлы через `rsync` по SSH.
+`git push` сам файлы на узел не выкладывает. GitHub Actions вызывает `scripts/deploy.sh`: список проектов берётся из `scripts/service_catalog.py`, файлы проектов синхронизируются через `rsync`.
 
 ## Так проект не запускают
 

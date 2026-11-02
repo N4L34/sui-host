@@ -1,0 +1,9 @@
+{
+  "compose_files": [
+    "deploy/compose.yml",
+    "deploy/compose.calls.yml",
+    "deploy/rendered/compose.dial.yml",
+    "deploy/compose.platform-net.yml"
+  ],
+  "deploy_hook": "deploy.sh"
+}

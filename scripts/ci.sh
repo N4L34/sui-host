@@ -5,6 +5,7 @@ cd "$(dirname "$0")/.."
 root=$PWD
 
 python3 scripts/discover.py --self-test
+python3 scripts/test_service_catalog.py
 
 python3 - <<'PY'
 from pathlib import Path
@@ -39,9 +40,13 @@ docker compose --env-file monitoring/.env.example -f monitoring/compose.yml conf
 python3 scripts/policy.py < "$rendered"
 rm -f "$rendered"
 
-for project in commands avtobot screen; do
-  docker compose -f "$project/compose.yml" config --quiet
-done
+while IFS=$'\t' read -r project compose_file; do
+  if [ -f "$project/.env.example" ]; then
+    docker compose --env-file "$project/.env.example" -f "$project/$compose_file" config --quiet
+  else
+    docker compose -f "$project/$compose_file" config --quiet
+  fi
+done < <(python3 scripts/service_catalog.py --compose-projects)
 
 sd=$(mktemp -d)
 printf '[]\n' > "$sd/probes.json"
@@ -86,13 +91,16 @@ docker run --rm \
   -v "$root:/work" \
   -w /work \
   python:3.12-alpine \
-  sh -c 'pip install -q yamllint==1.35.1 && yamllint -c .yamllint.yml monitoring/compose.yml monitoring/platform commands/compose.yml avtobot/compose.yml screen/compose.yml runner/compose.yml .github'
+  sh -c 'pip install -q yamllint==1.35.1 && find . -type f \
+    \( -name "*.yml" -o -name "*.yaml" \) -not -path "./.git/*" -print0 \
+    | xargs -0 yamllint -c .yamllint.yml'
+
 
 docker run --rm \
   -v "$root:/work" \
   -w /work \
   koalaman/shellcheck:v0.10.0 \
-  scripts/ci.sh scripts/deploy.sh
+  scripts/ci.sh scripts/deploy.sh chat/deploy.sh
 
 docker run --rm \
   -v "$root:/repo" \

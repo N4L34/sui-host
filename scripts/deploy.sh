@@ -1,29 +1,30 @@
 #!/bin/bash
-# Runs on the local runner. Updates /home/sui/sui-host and starts only a changed service folder.
+# Runs on the local runner. Syncs managed files and deploys changed projects only.
 set -euo pipefail
 src=$(cd "$(dirname "$0")/.." && pwd)
 dest=/home/sui/sui-host
 sha=$(git -C "$src" rev-parse HEAD)
 
-runtime=0
-services=()
+paths=()
 if git -C "$src" rev-parse --verify HEAD~1 >/dev/null 2>&1; then
-  while IFS= read -r path; do
-    case "$path" in
-      monitoring/* | scripts/* | systemd/* | runner/*) runtime=1; services+=(monitoring) ;;
-      commands/*) runtime=1; services+=(commands) ;;
-      avtobot/*) runtime=1; services+=(avtobot) ;;
-      screen/*) runtime=1; services+=(screen) ;;
-      chat/*) runtime=1; services+=(chat) ;;
-    esac
-  done < <(git -C "$src" diff --name-only HEAD~1 HEAD)
+  mapfile -t paths < <(git -C "$src" diff --name-only HEAD~1 HEAD)
 else
-  runtime=1
-  services=(monitoring commands avtobot screen chat)
+  mapfile -t paths < <(git -C "$src" ls-tree -r --name-only HEAD)
 fi
+mapfile -t services < <(printf '%s\n' "${paths[@]}" | python3 "$src/scripts/service_catalog.py" --changed)
+common_changed=0
+systemd_changed=0
+runner_changed=0
+for path in "${paths[@]}"; do
+  case "$path" in
+    scripts/*) common_changed=1 ;;
+    systemd/*) common_changed=1; systemd_changed=1 ;;
+    runner/*) runner_changed=1 ;;
+  esac
+done
 
-if [ "$runtime" -eq 0 ]; then
-  echo "docs only, containers stay"
+if [ "${#services[@]}" -eq 0 ] && [ "$common_changed" -eq 0 ] && [ "$runner_changed" -eq 0 ]; then
+  echo "no deployable project or host configuration changed"
   exit 0
 fi
 
@@ -32,112 +33,147 @@ if [ "$used" -ge 85 ]; then
   echo "disk ${used}% used, deploy refused"
   exit 1
 fi
-docker info >/dev/null
-docker network inspect monitoring >/dev/null
-
-uniq=()
-for name in "${services[@]}"; do
-  skip=0
-  for have in "${uniq[@]+"${uniq[@]}"}"; do
-    if [ "$have" = "$name" ]; then
-      skip=1
-    fi
-  done
-  if [ "$skip" -eq 0 ]; then
-    uniq+=("$name")
-  fi
-done
+if [ "${#services[@]}" -gt 0 ]; then
+  docker info >/dev/null
+  docker network inspect monitoring >/dev/null
+fi
 
 backup=$(mktemp -d)
-for name in "${uniq[@]}"; do
+declare -A had_service=()
+had_alertmanager_config=0
+managed_excludes=(
+  --exclude='.git/'
+  --exclude='secrets/'
+  --exclude='.env'
+  --exclude='backups/'
+  --exclude='deploy/rendered/'
+  --exclude='runtime/'
+  --exclude='deploy/observe/alertmanager/bot_token'
+)
+for name in "${services[@]}"; do
   mkdir -p "$backup/$name"
+  had_service[$name]=0
   if [ -d "$dest/$name" ]; then
-    if [ "$name" = chat ]; then
-      rsync -a --exclude 'secrets/' --exclude '.env' --exclude 'backups/' --exclude 'deploy/rendered/' "$dest/$name/" "$backup/$name/"
-    else
-      cp -a "$dest/$name/." "$backup/$name/"
-    fi
+    had_service[$name]=1
+    rsync -a --checksum "${managed_excludes[@]}" "$dest/$name/" "$backup/$name/"
   fi
 done
+for name in scripts systemd; do
+  if [ -d "$dest/$name" ]; then
+    mkdir -p "$backup/$name"
+    rsync -a --checksum "$dest/$name/" "$backup/$name/"
+  fi
+done
+if [ "$runner_changed" -eq 1 ] && [ -d "$dest/runner" ]; then
+  mkdir -p "$backup/runner"
+  rsync -a --checksum --exclude='runner_token' "$dest/runner/" "$backup/runner/"
+fi
+if [ -f "$dest/monitoring/runtime/alertmanager.yml" ]; then
+  had_alertmanager_config=1
+  mkdir -p "$backup/monitoring-runtime"
+  cp -p "$dest/monitoring/runtime/alertmanager.yml" "$backup/monitoring-runtime/alertmanager.yml"
+fi
 
 compose_up() {
-  local name=$1
-  if [ "$name" != chat ]; then
+  local name=$1 hook
+  hook=$(python3 "$dest/scripts/service_catalog.py" --deploy-hook "$name")
+  if [ -n "$hook" ]; then
+    (cd "$dest/$name" && "./$hook")
+  else
     (cd "$dest/$name" && docker compose up -d)
-    return
   fi
-  local parts
-  parts=$(curl -fsS --max-time 5 --get --data-urlencode 'query=max(livekit_participant_total)' http://127.0.0.1:9091/api/v1/query \
-    | python3 -c 'import sys,json; d=json.load(sys.stdin); r=d.get("data",{}).get("result",[]); print(r[0]["value"][1] if r else "0")')
-  if [ "$parts" != "0" ]; then
-    echo "call has participants, chat containers stay"
-    return 0
-  fi
-  (
-    cd "$dest/chat"
-    export TAILSCALE_IPV4
-    TAILSCALE_IPV4=$(tr -d '[:space:]' < secrets/tailscale_ipv4)
-    docker compose --env-file .env \
-      -f deploy/compose.yml \
-      -f deploy/compose.calls.yml \
-      -f deploy/rendered/compose.dial.yml \
-      -f deploy/compose.platform-net.yml \
-      up -d
-  )
 }
+attempted=()
 
 restore() {
-  echo "restore previous service files"
-  for name in "${uniq[@]}"; do
+  local name
+  echo "restore previous managed files"
+  for name in "${services[@]}"; do
+    mkdir -p "$dest/$name"
+    rsync -a --delete --checksum "${managed_excludes[@]}" "$backup/$name/" "$dest/$name/"
+  done
+  for name in scripts systemd; do
     if [ -d "$backup/$name" ]; then
-      mkdir -p "$dest/$name"
-      cp -a "$backup/$name/." "$dest/$name/"
+      rsync -a --delete --checksum "$backup/$name/" "$dest/$name/"
+    fi
+  done
+  if [ "$runner_changed" -eq 1 ] && [ -d "$backup/runner" ]; then
+    rsync -a --delete --checksum --exclude='runner_token' "$backup/runner/" "$dest/runner/"
+  fi
+  if [ "$had_alertmanager_config" -eq 1 ]; then
+    cp -p "$backup/monitoring-runtime/alertmanager.yml" "$dest/monitoring/runtime/alertmanager.yml"
+  elif [ -f "$dest/monitoring/runtime/alertmanager.yml" ]; then
+    rm -f "$dest/monitoring/runtime/alertmanager.yml"
+  fi
+  if [ "$systemd_changed" -eq 1 ]; then
+    systemctl daemon-reload || true
+  fi
+  for name in "${attempted[@]}"; do
+    if [ "${had_service[$name]}" -eq 1 ]; then
       compose_up "$name" || true
     fi
   done
 }
 
-rsync -a \
-  --exclude '.git/' \
-  --exclude 'monitoring/.env' \
-  --exclude 'monitoring/runtime/' \
-  --exclude 'secrets/' \
-  "$src/monitoring/" "$dest/monitoring/"
-rsync -a --exclude 'secrets/' "$src/commands/" "$dest/commands/"
-rsync -a --exclude 'secrets/' "$src/avtobot/" "$dest/avtobot/"
-rsync -a --exclude 'secrets/' "$src/screen/" "$dest/screen/"
-rsync -a \
-  --exclude '.env' \
-  --exclude 'secrets/' \
-  --exclude 'backups/' \
-  --exclude 'deploy/rendered/' \
-  --exclude 'deploy/observe/alertmanager/bot_token' \
-  "$src/chat/" "$dest/chat/"
-rsync -a "$src/scripts/" "$dest/scripts/"
-rsync -a "$src/systemd/" "$dest/systemd/"
-rsync -a "$src/runner/" "$dest/runner/"
+for name in "${services[@]}"; do
+  if ! rsync -a --delete --checksum "${managed_excludes[@]}" "$src/$name/" "$dest/$name/"; then
+    restore
+    exit 1
+  fi
+done
+if [ "$common_changed" -eq 1 ] || [ "${#services[@]}" -gt 0 ]; then
+  if ! rsync -a --delete --checksum "$src/scripts/" "$dest/scripts/" \
+    || ! rsync -a --delete --checksum "$src/systemd/" "$dest/systemd/"; then
+    restore
+    exit 1
+  fi
+fi
+if [ "$runner_changed" -eq 1 ]; then
+  if ! rsync -a --delete --checksum --exclude='runner_token' "$src/runner/" "$dest/runner/"; then
+    restore
+    exit 1
+  fi
+fi
+if [ "$systemd_changed" -eq 1 ]; then
+  if ! systemctl daemon-reload; then
+    restore
+    exit 1
+  fi
+fi
 
 if [ -f "$dest/monitoring/runtime/telegram_chat_id" ] && [ -f "$dest/monitoring/runtime/telegram_token" ]; then
-  chat=$(tr -d '[:space:]' < "$dest/monitoring/runtime/telegram_chat_id")
-  sed "s/__TELEGRAM_CHAT_ID__/${chat}/" "$dest/monitoring/platform/alertmanager/alertmanager.yml.tmpl" > "$dest/monitoring/runtime/alertmanager.yml.new"
-  docker run --rm \
+  if ! chat=$(tr -d '[:space:]' < "$dest/monitoring/runtime/telegram_chat_id"); then
+    restore
+    exit 1
+  fi
+  if ! sed "s/__TELEGRAM_CHAT_ID__/${chat}/" "$dest/monitoring/platform/alertmanager/alertmanager.yml.tmpl" > "$dest/monitoring/runtime/alertmanager.yml.new"; then
+    restore
+    exit 1
+  fi
+  if ! docker run --rm \
     -v "$dest/monitoring/runtime/alertmanager.yml.new:/etc/alertmanager/alertmanager.yml:ro" \
     -v "$dest/monitoring/platform/alertmanager/telegram.tmpl:/etc/alertmanager/telegram.tmpl:ro" \
     -v "$dest/monitoring/runtime/telegram_token:/etc/alertmanager/telegram_token:ro" \
     --entrypoint amtool \
     prom/alertmanager:v0.28.0 \
-    check-config /etc/alertmanager/alertmanager.yml
-  mv "$dest/monitoring/runtime/alertmanager.yml.new" "$dest/monitoring/runtime/alertmanager.yml"
+    check-config /etc/alertmanager/alertmanager.yml; then
+    restore
+    exit 1
+  fi
+  if ! mv "$dest/monitoring/runtime/alertmanager.yml.new" "$dest/monitoring/runtime/alertmanager.yml"; then
+    restore
+    exit 1
+  fi
 fi
-
-for name in "${uniq[@]}"; do
+for name in "${services[@]}"; do
+  attempted+=("$name")
   if ! compose_up "$name"; then
     restore
     exit 1
   fi
 done
 
-if printf '%s\n' "${uniq[@]}" | grep -qx monitoring; then
+if printf '%s\n' "${services[@]}" | grep -qx monitoring; then
   smoke() {
     curl -fsS -o /dev/null http://127.0.0.1:3000/api/health
     curl -fsS -o /dev/null http://127.0.0.1:9091/-/ready
@@ -152,5 +188,8 @@ fi
 text=/home/sui/sui-host/chat/deploy/rendered/textfile
 if [ -d "$text" ]; then
   printf 'monitoring_git_sha_info{sha="%s"} 1\n' "$sha" > "$text/monitoring_git_sha.prom"
+fi
+if [ "$runner_changed" -eq 1 ]; then
+  echo "runner configuration synced; runner container was not restarted by its active job"
 fi
 echo "deploy $sha ok"
