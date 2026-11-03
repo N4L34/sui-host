@@ -19,7 +19,8 @@ class RuntimeEnvMigrationTest(unittest.TestCase):
 
             migrate(source, target)
 
-            self.assertFalse(source.exists())
+            self.assertTrue(source.is_symlink())
+            self.assertEqual(source.resolve(), target.resolve())
             self.assertEqual(target.read_text(encoding="utf-8"), "MATRIX_SERVER_NAME=matrix.example.com\n")
             self.assertEqual(target.stat().st_mode & 0o777, 0o600)
 
@@ -35,7 +36,8 @@ class RuntimeEnvMigrationTest(unittest.TestCase):
 
             migrate(source, target)
 
-            self.assertFalse(source.exists())
+            self.assertTrue(source.is_symlink())
+            self.assertEqual(source.resolve(), target.resolve())
             self.assertEqual(target.read_text(encoding="utf-8"), "host-owned\n")
 
 
