@@ -7,3 +7,6 @@ __pycache__/
 *.log
 .DS_Store
 runner/runner_token
+
+# Host-only configuration
+commands/runtime.env

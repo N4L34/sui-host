@@ -41,7 +41,7 @@ curl -fsS -X DELETE -H "Authorization: Bearer $TOKEN" \
 ```bash
 python3 scripts/matrix_admin.py reset \
   --admin operator \
-  --password 'ТЕКУЩИЙ_ПАРОЛЬ_operator' \
+  --password 'ТЕКУЩИЙ_ПАРОЛЬ_АДМИНА' \
   --user alice \
   --new-password 'НОВЫЙ_ОДНОРАЗОВЫЙ_ПАРОЛЬ'
 ```

@@ -24,9 +24,8 @@ services:
       PYTHONUNBUFFERED: "1"
       HOMESERVER_URL: http://synapse:8008
       TELEGRAM_API_IP: 149.154.167.220
-      MATRIX_SERVER_NAME: sui.example.com
     volumes:
-      - ./runtime.env:/app/.env:ro
+      - /home/sui/commands/runtime.env:/app/.env:ro
       - /home/sui/commands/state:/app/deploy/rendered
       - /home/sui/sui-host/chat/secrets/telegram_bot_token:/app/secrets/telegram_bot_token:ro
       - /home/sui/sui-host/chat/secrets/telegram_chat_id:/app/secrets/telegram_chat_id:ro

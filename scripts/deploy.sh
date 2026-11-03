@@ -37,6 +37,10 @@ if [ "${#services[@]}" -gt 0 ]; then
   docker info >/dev/null
   docker network inspect monitoring >/dev/null
 fi
+if printf '%s\n' "${services[@]}" | grep -qx commands; then
+  python3 "$src/scripts/migrate_runtime_env.py" \
+    "$dest/commands/runtime.env" /home/sui/commands/runtime.env
+fi
 
 backup=$(mktemp -d)
 declare -A had_service=()
@@ -45,6 +49,7 @@ managed_excludes=(
   --exclude='.git/'
   --exclude='secrets/'
   --exclude='.env'
+  --exclude='runtime.env'
   --exclude='backups/'
   --exclude='deploy/rendered/'
   --exclude='runtime/'
@@ -175,9 +180,21 @@ done
 
 if printf '%s\n' "${services[@]}" | grep -qx monitoring; then
   smoke() {
+    local matrix_server_name
+    matrix_server_name=$(python3 - "$dest/chat/.env" <<'PY'
+from pathlib import Path
+import sys
+for raw in Path(sys.argv[1]).read_text(encoding="utf-8").splitlines():
+    line = raw.strip()
+    if line.startswith("MATRIX_SERVER_NAME="):
+        print(line.split("=", 1)[1].strip().strip("\"'"))
+        break
+PY
+    )
+    [ -n "$matrix_server_name" ] || return 1
     curl -fsS -o /dev/null http://127.0.0.1:3000/api/health
     curl -fsS -o /dev/null http://127.0.0.1:9091/-/ready
-    curl -fsS -o /dev/null "https://sui.example.com/_matrix/client/versions"
+    curl -fsS -o /dev/null "https://${matrix_server_name}/_matrix/client/versions"
   }
   if ! smoke; then
     restore

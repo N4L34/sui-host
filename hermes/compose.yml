@@ -1,0 +1,59 @@
+name: hermes
+
+x-log: &jsonlog
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  hermes:
+    image: nousresearch/hermes-agent:v0.22.5
+    pull_policy: missing
+    command: [gateway, run]
+    init: true
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      TZ: Europe/Moscow
+      HERMES_UID: "1000"
+      HERMES_GID: "1000"
+      API_SERVER_ENABLED: "true"
+      API_SERVER_HOST: 0.0.0.0
+      API_SERVER_KEY: ${HERMES_API_SERVER_KEY:?Set HERMES_API_SERVER_KEY in hermes/.env}
+      HTTP_PROXY: ${HERMES_SOCKS_PROXY:?Set HERMES_SOCKS_PROXY in hermes/.env}
+      HTTPS_PROXY: ${HERMES_SOCKS_PROXY:?Set HERMES_SOCKS_PROXY in hermes/.env}
+      ALL_PROXY: ${HERMES_SOCKS_PROXY:?Set HERMES_SOCKS_PROXY in hermes/.env}
+      NO_PROXY: localhost,127.0.0.1,hermes
+    volumes:
+      - /home/sui/hermes/data:/opt/data
+    networks:
+      - monitoring
+    logging: *jsonlog
+    healthcheck:
+      test:
+        - CMD
+        - python3
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8642/health', timeout=3)
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    labels:
+      monitoring.project: hermes
+      monitoring.service: hermes
+      monitoring.probe: http://hermes:8642/health
+      monitoring.name: Hermes
+      monitoring.summary: "Hermes Agent не отвечает."
+      monitoring.resolved: "Hermes Agent снова отвечает."
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+
+networks:
+  monitoring:
+    external: true
+    name: monitoring

@@ -6,6 +6,7 @@ root=$PWD
 
 python3 scripts/discover.py --self-test
 python3 scripts/test_service_catalog.py
+python3 scripts/test_runtime_env_migration.py
 
 python3 - <<'PY'
 from pathlib import Path

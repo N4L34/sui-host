@@ -36,7 +36,7 @@ ROOT = Path(__file__).resolve().parents[1]
 OFFSET = ROOT / "deploy" / "rendered" / "telegram_offset"
 PENDING = ROOT / "deploy" / "rendered" / "telegram_pending_user"
 CONSOLE = "svoibot"
-PROTECTED = frozenset({CONSOLE, "operator", "_lk_jwt_service"})
+PROTECTED = frozenset({CONSOLE, "_lk_jwt_service"})
 
 
 def load_env() -> dict[str, str]:
@@ -1463,24 +1463,24 @@ def check() -> None:
 
 
 def self_test() -> None:
-    assert localpart_from_name("Оператор") == "operator"
+    assert localpart_from_name("Пример") == "primer"
     assert localpart_from_name("Элина") == "elina"
     assert localpart_from_name("Сергей") == "sergey"
-    assert localpart_from_name("Тестировщик") == "tester"
+    assert localpart_from_name("Дима") == "dima"
     assert localpart_from_name("Ёлка") == "yolka"
     assert localpart_from_name("Андрей") == "andrey"
-    assert parse_command("новый Оператор").name == "new"
-    assert parse_command("новый Оператор").args == ("Оператор",)
-    display, login, error = parse_new("Тестировщик логин tester")
-    assert (display, login, error) == ("Тестировщик", "tester", None)
+    assert parse_command("новый Ирина").name == "new"
+    assert parse_command("новый Пример").args == ("Пример",)
+    display, login, error = parse_new("Дима логин dima")
+    assert (display, login, error) == ("Дима", "dima", None)
     assert parse_command("удали совсем sergon").name == "erase"
     assert parse_command("удали sergon").name == "delete"
     assert parse_command("группы").name == "rooms"
     invite = parse_command("пригласи elina в Друзья дома")
     assert invite is not None and invite.args == ("elina", "Друзья дома")
     assert parse_command("/new@Other Ник", "ExampleBot") is None
-    renamed = parse_command("/new@ExampleBot Оператор", "gdz_agent")
-    assert renamed is not None and renamed.args == ("Оператор",)
+    renamed = parse_command("/new@ExampleBot Пример", "examplebot")
+    assert renamed is not None and renamed.args == ("Пример",)
     users = {"operator": {"deactivated": False, "admin": True}}
 
     def lookup(name: str):
