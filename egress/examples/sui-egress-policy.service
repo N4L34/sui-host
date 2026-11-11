@@ -1,0 +1,16 @@
+# Host configuration task, installed separately by the operator. Not an app.
+[Unit]
+Description=Install scoped Sui egress host policy
+DefaultDependencies=no
+After=local-fs.target
+Before=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/home/sui/sui-host
+ExecStart=/usr/bin/python3 -m egress.enforcement apply /etc/sui-egress/inventory.json --backup /etc/sui-egress/previous.json
+# Stopping this unit deliberately does not remove deny rules or authorize clients.
+
+[Install]
+WantedBy=multi-user.target

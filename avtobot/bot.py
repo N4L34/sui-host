@@ -16,6 +16,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import browser
+import egress_client
 import card
 import plate
 import store
@@ -96,6 +97,8 @@ def _proxy_up() -> bool:
 
 def ensure_proxy() -> None:
     global _xray
+    if egress_client.required(os.environ):
+        return
     if _proxy_up():
         return
     binary = ROOT / "bin" / "xray"
@@ -150,6 +153,8 @@ def _socks(sock: socket.socket, host: str, port: int) -> None:
 
 def _open_api() -> socket.socket:
     global _direct_until
+    if egress_client.required(os.environ):
+        return egress_client.open_required(os.environ, API_HOST, 443)
     if time.time() >= _direct_until:
         try:
             return socket.create_connection((API_IP, 443), 3)
@@ -362,6 +367,8 @@ def main() -> None:
     serve_health()
     global _direct_until
     try:
+        if egress_client.required(os.environ):
+            raise OSError("required_gateway")
         probe = socket.create_connection((API_IP, 443), 3)
         probe.close()
     except OSError:

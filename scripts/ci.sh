@@ -4,9 +4,12 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 root=$PWD
 
+bash scripts/test_egress.sh
+
 python3 scripts/discover.py --self-test
 python3 scripts/test_service_catalog.py
 python3 scripts/test_runtime_env_migration.py
+python3 scripts/test_deploy_skip.py
 
 python3 - <<'PY'
 from pathlib import Path

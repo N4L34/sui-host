@@ -129,3 +129,22 @@ groups:
         annotations:
           summary: "Проверка адреса чата остановилась."
           resolved: "Проверка адреса чата снова идёт."
+
+  - name: platform-egress
+    rules:
+      - alert: EgressStatusSeriesMissing
+        expr: up{project="egress", service="status"} unless on (project, service) egress_status_live
+        for: 2m
+        labels:
+          severity: page
+        annotations:
+          summary: "Egress не публикует состояние проверок."
+          resolved: "Состояние исходящих проверок снова доступно."
+      - alert: EgressUpstreamDegraded
+        expr: (min by (project, upstream) (egress_probe_ready{profile="system"}) == 0) and on (project) (egress_ready == 1)
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Один из исходящих каналов недоступен; рабочий путь сохранён."
+          resolved: "Исходящий канал восстановлен."

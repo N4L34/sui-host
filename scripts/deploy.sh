@@ -5,6 +5,13 @@ src=$(cd "$(dirname "$0")/.." && pwd)
 dest=/home/sui/sui-host
 sha=$(git -C "$src" rev-parse HEAD)
 
+case "$(git -C "$src" log -1 --format=%B)" in
+  *"[skip deploy]"*)
+    echo "deployment skipped by commit marker"
+    exit 0
+    ;;
+esac
+
 paths=()
 if git -C "$src" rev-parse --verify HEAD~1 >/dev/null 2>&1; then
   mapfile -t paths < <(git -C "$src" diff --name-only HEAD~1 HEAD)

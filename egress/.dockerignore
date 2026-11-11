@@ -1,0 +1,6 @@
+*
+!Dockerfile
+!*.py
+!patches/
+!patches/*.patch
+!patches/NOTICE.md

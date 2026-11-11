@@ -10,3 +10,10 @@ runner/runner_token
 
 # Host-only configuration
 commands/runtime.env
+
+# Generated host-only egress topology and local opt-in migrations
+egress/compose.override.yml
+*/compose.egress.yml
+
+# Local proxy tool auto-generated CA material
+.gost/

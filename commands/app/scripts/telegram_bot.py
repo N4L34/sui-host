@@ -9,6 +9,7 @@ is deactivated and the password is not written down.
 from __future__ import annotations
 
 import hashlib
+import egress_client
 import hmac
 import http.server
 import json
@@ -458,6 +459,9 @@ def _socks(sock: socket.socket, host: str, port: int) -> None:
 
 def open_telegram(env: dict[str, str]) -> socket.socket:
     global _direct_until
+    gateway_config = dict(env, **os.environ)
+    if egress_client.required(gateway_config):
+        return egress_client.open_required(gateway_config, API_HOST, 443)
     if time.time() >= _direct_until:
         try:
             return socket.create_connection((api_ip(env), 443), 5)

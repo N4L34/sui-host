@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import egress_client
 import json
 import os
 import re
@@ -83,6 +84,7 @@ def _ensure() -> None:
             "--mute-audio",
             "--renderer-process-limit=1",
             "--window-size=800,600",
+            *egress_client.chrome_arguments(os.environ),
             "about:blank",
         ],
         env=env,

@@ -12,6 +12,7 @@
 | `screen` | `screen` | панель Sui Play выключена |
 | `chat` | `chat` | Matrix из `/home/sui/sui-host/chat` |
 | `hermes` | `hermes` | AI gateway без опубликованного host-порта |
+| `egress` | `egress` | управляемый HTTP/SOCKS-выход для явно подключённых сервисов |
 
 Заметки и локальные настройки узла в репозитории не хранятся.
 
@@ -24,5 +25,7 @@
 ## Куда смотреть
 
 Человеку: [архитектура](docs/architecture.md), [сервисы](docs/services.md), [эксплуатация](docs/work.md), [подключение сервиса](docs/new-service.md).
+
+Исходящий доступ: [настройка egress](egress/README.md), [спецификация](docs/egress.md).
 
 Агенту перед любой командой на узле: `AGENTS.md`. Проверки и выкладка: [эталон](docs/standard.md), команда `scripts/ci.sh`.

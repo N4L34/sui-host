@@ -1,0 +1,119 @@
+{
+  "version": "install-1",
+  "registry": {
+    "version": "example-1",
+    "denied_networks": [
+      "192.0.2.0/24",
+      "2001:db8::/32"
+    ],
+    "profiles": [
+      {
+        "id": "demo-pilot",
+        "project": "demo",
+        "service": "worker",
+        "owner": "platform",
+        "integration": "both",
+        "mode": "pilot",
+        "routes": [
+          {
+            "id": "example-api",
+            "action": "PROXY",
+            "matcher": {
+              "kind": "exact",
+              "value": "api.example.invalid"
+            },
+            "ports": [
+              443
+            ],
+            "upstream_group": "primary"
+          },
+          {
+            "id": "example-static",
+            "action": "DIRECT",
+            "matcher": {
+              "kind": "suffix",
+              "value": "static.example.invalid"
+            },
+            "ports": [
+              443
+            ]
+          },
+          {
+            "id": "documentation-network",
+            "action": "DENY",
+            "matcher": {
+              "kind": "cidr",
+              "value": "198.51.100.0/24"
+            },
+            "ports": [
+              80,
+              443
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "uid": 1000,
+  "gid": 1000,
+  "ingress": [
+    {
+      "profile": "demo-pilot",
+      "subnet": "172.29.40.0/24",
+      "gateway": "172.29.40.2",
+      "dns": "172.29.40.3",
+      "status": "172.29.40.4",
+      "sources": [
+        "172.29.40.10"
+      ]
+    }
+  ],
+  "control": {
+    "subnet": "172.29.41.0/24",
+    "gateway": "172.29.41.2",
+    "dns": "172.29.41.3",
+    "status": "172.29.41.4"
+  },
+  "monitoring": {
+    "gateway": "172.29.42.2",
+    "dns": "172.29.42.3",
+    "status": "172.29.42.4"
+  },
+  "uplink": {
+    "subnet": "172.29.43.0/24",
+    "gateway": "172.29.43.2"
+  },
+  "upstreams": [
+    {
+      "id": "node-a",
+      "transport": "https",
+      "ip": "8.8.8.8",
+      "port": 443,
+      "server_name": "upstream.example.invalid",
+      "username": "test",
+      "password": "example-password-not-for-use",
+      "ca_pem": ""
+    }
+  ],
+  "groups": [
+    {
+      "id": "primary",
+      "members": [
+        "node-a"
+      ]
+    }
+  ],
+  "resolver": {
+    "ip": "1.1.1.1",
+    "port": 443,
+    "server_name": "resolver.example.invalid",
+    "path": "/dns-query",
+    "group": "primary",
+    "ca_pem": ""
+  },
+  "probe": {
+    "target": "api.example.invalid",
+    "port": 443,
+    "ca_pem": ""
+  }
+}

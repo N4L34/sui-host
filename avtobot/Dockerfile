@@ -13,7 +13,7 @@ RUN groupadd --gid 1000 avtobot \
     && useradd --uid 1000 --gid 1000 --create-home --shell /usr/sbin/nologin avtobot
 
 WORKDIR /app
-COPY bot.py browser.py card.py plate.py store.py /app/
+COPY bot.py browser.py card.py plate.py store.py egress_client.py /app/
 RUN mkdir -p /app/secrets && chown -R 1000:1000 /app
 
 USER 1000:1000

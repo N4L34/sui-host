@@ -1,0 +1,93 @@
+name: egress
+
+x-runtime: &runtime
+  image: sui-egress:2026.11.10
+  build:
+    context: .
+    target: runtime
+  pull_policy: missing
+  user: "1000:1000"
+  init: true
+  restart: unless-stopped
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  sysctls:
+    net.ipv4.ip_unprivileged_port_start: "0"
+    net.ipv6.conf.all.disable_ipv6: "1"
+  tmpfs: ["/tmp:mode=1777,size=32m"]
+  ulimits:
+    nofile: {soft: 4096, hard: 4096}
+  pids_limit: 128
+  logging:
+    driver: json-file
+    options: {max-size: 10m, max-file: "5"}
+  healthcheck:
+    test: [CMD, python3, -m, egress.daemon, health]
+    interval: 30s
+    timeout: 3s
+    retries: 3
+    start_period: 30s
+
+services:
+  gateway:
+    <<: *runtime
+    command: [gateway]
+    networks: [control, uplink, monitoring]
+    volumes:
+      - type: bind
+        source: ./runtime/gateway
+        target: /run/private
+        read_only: true
+        bind: {create_host_path: false}
+    memswap_limit: 288M
+    deploy:
+      resources:
+        limits: {memory: 288M, cpus: "1.0", pids: 128}
+  dns:
+    <<: *runtime
+    command: [dns]
+    networks: [control, monitoring]
+    volumes:
+      - type: bind
+        source: ./runtime/dns
+        target: /run/private
+        read_only: true
+        bind: {create_host_path: false}
+    memswap_limit: 96M
+    deploy:
+      resources:
+        limits: {memory: 96M, cpus: "0.5", pids: 128}
+  status:
+    <<: *runtime
+    command: [status]
+    networks: [control, monitoring]
+    volumes:
+      - type: bind
+        source: ./runtime/status
+        target: /run/private
+        read_only: true
+        bind: {create_host_path: false}
+    memswap_limit: 128M
+    deploy:
+      resources:
+        limits: {memory: 128M, cpus: "0.5", pids: 128}
+    labels:
+      monitoring.project: egress
+      monitoring.service: status
+      monitoring.dns: sui-egress-status
+      monitoring.probe: http://sui-egress-status:8080/health/ready
+      monitoring.metrics.port: "8080"
+      monitoring.metrics.path: /metrics
+      monitoring.alert: page
+      monitoring.name: Исходящие соединения
+      monitoring.summary: Обязательный исходящий путь недоступен.
+      monitoring.resolved: Исходящие соединения восстановлены.
+
+networks:
+  control:
+    internal: true
+  uplink: {}
+  monitoring:
+    external: true
+    name: monitoring
