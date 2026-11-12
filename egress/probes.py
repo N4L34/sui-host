@@ -43,6 +43,7 @@ class Probe:
     ca_file: str | None = None
     target_ip: str | None = None
     tls_only: bool = False
+    expected_status: int = 200
 
 
 @dataclass(frozen=True)
@@ -88,6 +89,11 @@ def probe(config: Probe, timeout: float = 15) -> Result:
         for port in (config.proxy_port, config.target_port):
             if type(port) is not int or not 1 <= port <= 65535:
                 raise ValueError()
+        if (
+            type(config.expected_status) is not int
+            or not 200 <= config.expected_status < 400
+        ):
+            raise ValueError()
         hostname = _hostname(config.target)
         deadline = start + timeout
 
@@ -182,7 +188,7 @@ def probe(config: Probe, timeout: float = 15) -> Result:
             return Result("ok", time.monotonic() - start)
         reason = "origin_http"
         send(b"GET / HTTP/1.1\r\nHost: " + authority + b"\r\nConnection: close\r\n\r\n")
-        if read_headers() != 200:
+        if read_headers() != config.expected_status:
             raise ProbeError("origin_http")
         reason = "ok"
     except (TimeoutError, socket.timeout):

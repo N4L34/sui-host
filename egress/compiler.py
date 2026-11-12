@@ -7,6 +7,7 @@ separate 0700 directory; only gateway output contains upstream credentials.
 import copy
 import ipaddress
 import re
+import uuid
 import ssl
 
 from .policy import (
@@ -21,7 +22,7 @@ from .policy import (
     validate_registry,
 )
 
-SINGBOX_VERSION = "1.13.14-sui.1"
+SINGBOX_VERSION = "1.13.14-sui.2"
 GOST_VERSION = "3.3.3"
 COMPONENTS = ("gateway", "dns", "status")
 
@@ -299,6 +300,7 @@ def _compile(value):
         raise ValueError()
     nodes = {}
     for node in _list(config["upstreams"], maximum=8):
+        reality = node.get("transport") == "vless-reality"
         _keys(
             node,
             (
@@ -307,26 +309,43 @@ def _compile(value):
                 "ip",
                 "port",
                 "server_name",
-                "username",
-                "password",
-                "ca_pem",
+            )
+            + (
+                ("uuid", "public_key", "short_id", "fingerprint", "flow")
+                if reality
+                else ("username", "password", "ca_pem")
             ),
         )
         node["id"] = _id(node["id"])
-        if node["id"] in nodes or node["transport"] not in ("https", "socks5-tls"):
+        if node["id"] in nodes or node["transport"] not in (
+            "https",
+            "socks5-tls",
+            "vless-reality",
+        ):
             raise ValueError()
         node["ip"] = _public(node["ip"])
         _port(node["port"])
         node["server_name"] = _host(node["server_name"])
         if _literal(node["server_name"]):
             raise ValueError()
-        _text(node["username"], maximum=255)
-        _text(
-            node["password"], maximum=255 if node["transport"] == "socks5-tls" else 4096
-        )
-        if ":" in node["username"]:
-            raise ValueError()
-        _ca(node["ca_pem"])
+        if reality:
+            if (
+                str(uuid.UUID(node["uuid"])) != node["uuid"]
+                or not re.fullmatch(r"[A-Za-z0-9_-]{43}", node["public_key"])
+                or not re.fullmatch(r"(?:[0-9a-f]{2}){0,8}", node["short_id"])
+                or node["fingerprint"] not in ("chrome", "firefox", "safari", "edge")
+                or node["flow"] not in ("", "xtls-rprx-vision")
+            ):
+                raise ValueError()
+        else:
+            _text(node["username"], maximum=255)
+            _text(
+                node["password"],
+                maximum=255 if node["transport"] == "socks5-tls" else 4096,
+            )
+            if ":" in node["username"]:
+                raise ValueError()
+            _ca(node["ca_pem"])
         nodes[node["id"]] = node
     groups = {}
     for group in _list(config["groups"], maximum=8):
@@ -360,7 +379,10 @@ def _compile(value):
     ):
         raise ValueError()
     target = config["probe"]
-    _keys(target, ("target", "port", "ca_pem"))
+    _keys(target, ("target", "port", "ca_pem"), ("expected_status",))
+    expected_status = target.get("expected_status", 200)
+    if type(expected_status) is not int or not 200 <= expected_status < 400:
+        raise ValueError()
     target["target"] = _host(target["target"])
     _port(target["port"])
     _ca(target["ca_pem"])
@@ -385,11 +407,23 @@ def _compile(value):
             "tag": "node-" + node["id"],
             "server": node["ip"],
             "server_port": node["port"],
-            "username": node["username"],
-            "password": node["password"],
-            "tls": _tls(node["server_name"], node["ca_pem"]),
+            "tls": _tls(node["server_name"], node.get("ca_pem", "")),
             "connect_timeout": "5s",
         }
+        if node["transport"] == "vless-reality":
+            outbound.update(
+                type="vless", uuid=node["uuid"], flow=node["flow"], network="tcp"
+            )
+            outbound["tls"].update(
+                utls={"enabled": True, "fingerprint": node["fingerprint"]},
+                reality={
+                    "enabled": True,
+                    "public_key": node["public_key"],
+                    "short_id": node["short_id"],
+                },
+            )
+        else:
+            outbound.update(username=node["username"], password=node["password"])
         if node["transport"] == "socks5-tls":
             outbound.update(type="socks", version="5", network="tcp")
         gateway["outbounds"].append(outbound)
@@ -504,6 +538,7 @@ def _compile(value):
             "target_port": target["port"],
             "ca_file": "/run/private/probe-ca.pem" if target["ca_pem"] else None,
             "required": required,
+            "expected_status": expected_status,
         }
         status_probes.append(p)
         return p

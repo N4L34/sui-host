@@ -1,7 +1,7 @@
 name: egress
 
 x-runtime: &runtime
-  image: sui-egress:2026.11.10
+  image: sui-egress:2026.11.12
   build:
     context: .
     target: runtime

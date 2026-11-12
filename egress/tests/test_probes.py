@@ -1,4 +1,5 @@
 import tempfile
+from dataclasses import replace
 import time
 import unittest
 
@@ -7,6 +8,19 @@ from lab import certificate, origin, proxy
 
 
 class ProbeTests(unittest.TestCase):
+    def test_expected_redirect_is_exact_and_is_never_followed(self):
+        with (
+            origin(self.tls, status=302) as (target, seen),
+            proxy(target) as (address, _),
+        ):
+            config = self.config(address)
+            self.assertEqual(probe(config).reason, "origin_http")
+            self.assertEqual(probe(replace(config, expected_status=302)).reason, "ok")
+            self.assertEqual(
+                probe(replace(config, expected_status=301)).reason, "origin_http"
+            )
+            self.assertEqual(seen["requests"], 3)
+
     @classmethod
     def setUpClass(cls):
         cls.directory = tempfile.TemporaryDirectory()

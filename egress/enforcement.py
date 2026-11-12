@@ -195,6 +195,10 @@ def validate_bindings(config, inventory):
             permitted = (
                 {(n["ip"], "tcp", n["port"]) for n in config["upstreams"]}
                 | {(config["control"]["dns"], "udp", 5353)}
+                | {
+                    (config["control"]["gateway"], "tcp", 23000 + n)
+                    for n in range(len(config["upstreams"]))
+                }
                 | direct_ips
             )
         elif component == "dns":
@@ -207,6 +211,9 @@ def validate_bindings(config, inventory):
             } | {
                 (config["control"]["dns"], "udp", 5353),
                 (config["control"]["gateway"], "tcp", 18081),
+                # The post-up smoke queries the status server on its bound
+                # monitoring address, even from the same network namespace.
+                (config["monitoring"]["status"], "tcp", 8080),
             }
             permitted |= {
                 (config["control"]["gateway"], "tcp", 22000 + n * 2 + j)

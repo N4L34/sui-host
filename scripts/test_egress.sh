@@ -50,10 +50,10 @@ for name,service in config['services'].items():
 print('egress hardened topology ok')
 PY
 
-docker build --target test -t sui-egress-test:2026.11.10 egress
+docker build --target test -t sui-egress-test:2026.11.12 egress
 container=(docker run --rm --network none --cap-drop ALL --security-opt no-new-privileges:true
   --mount "type=bind,src=$temporary/fixture,dst=/workspace,readonly" -w /workspace
-  --entrypoint python3 sui-egress-test:2026.11.10)
+  --entrypoint python3 sui-egress-test:2026.11.12)
 "${container[@]}" egress/tests/singbox_lab.py --binary /usr/local/bin/sing-box --gost /usr/local/bin/gost
 "${container[@]}" egress/tests/deadline_lab.py
 "${container[@]}" egress/tests/runtime_lab.py
@@ -62,8 +62,8 @@ docker run --rm --network none --user 0:0 --cap-drop ALL --cap-add NET_ADMIN \
   --sysctl net.ipv6.conf.all.disable_ipv6=1 --sysctl net.ipv6.conf.default.disable_ipv6=1 \
   --security-opt no-new-privileges:true \
   --mount "type=bind,src=$temporary/fixture,dst=/workspace,readonly" -w /workspace \
-  --entrypoint python3 sui-egress-test:2026.11.10 egress/tests/kernel_lab.py
+  --entrypoint python3 sui-egress-test:2026.11.12 egress/tests/kernel_lab.py
 
 # Exercise actual separate Compose roles, static source admission and mounts.
-docker build --target runtime -t sui-egress:2026.11.10 egress
+docker build --target runtime -t sui-egress:2026.11.12 egress
 python3 "$temporary/fixture/egress/tests/compose_lab.py" run

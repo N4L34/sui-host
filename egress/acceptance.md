@@ -57,3 +57,7 @@ The pinned native patch enforces a 15-second establishment budget across address
 Native telemetry is aggregate: active PROXY/DIRECT counts and engine byte totals include controlled probes/DNS transport, reset with native restart, and have no per-destination labels. Error counts are native error events, not exact per-route denied-request counts. No raw native API, rule text or destination metrics are exported. Resource/FD saturation also comes from existing cAdvisor; no new dashboard is introduced.
 
 The repository's live node and real credentials remain untouched. Local synthetic tests support review and implementation quality; they do not substitute for this installation's live packet, lifecycle, load and recovery evidence.
+
+## VLESS/Reality transport extension
+
+The `vless-reality` upstream uses the same numeric-destination route policy and secret-role separation as TLS HTTP/SOCKS. The isolated native protocol fixture exercises HTTP and SOCKS frontends through a real REALITY server and rejects a wrong short ID. Unit checks cover malformed UUID/key/short ID/fingerprint/flow, private credential separation, exact HTTP probe status without redirects, and the status self-check inventory. These checks do not establish reachability of any live provider. A live rollout must pass the same post-up readiness gate before any client is switched; failed trials stop the new egress project, retain reserved-identity deny and remove its startup marker before restoring temporary host prerequisites.

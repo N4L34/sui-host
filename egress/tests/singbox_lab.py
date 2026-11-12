@@ -71,6 +71,81 @@ def running(config, binary, argument="-c"):
 
 
 class Conformance(unittest.TestCase):
+    def test_reality_both_frontends_and_wrong_short_id_fail_closed(self):
+        keys = subprocess.check_output(
+            [BINARY, "generate", "reality-keypair"], text=True
+        )
+        pair = dict(line.split(": ", 1) for line in keys.strip().splitlines())
+        user = "12345678-1234-4234-8234-123456789abc"
+        with origin(self.tls) as (target, seen):
+            server_port = port()
+            server = {
+                "log": {"level": "error", "timestamp": False},
+                "inbounds": [
+                    {
+                        "type": "vless",
+                        "listen": "127.0.0.1",
+                        "listen_port": server_port,
+                        "users": [{"uuid": user, "flow": "xtls-rprx-vision"}],
+                        "tls": {
+                            "enabled": True,
+                            "server_name": "upstream.test.invalid",
+                            "reality": {
+                                "enabled": True,
+                                "handshake": {
+                                    "server": target[0],
+                                    "server_port": target[1],
+                                },
+                                "private_key": pair["PrivateKey"],
+                                "short_id": ["abcdef12"],
+                            },
+                        },
+                    }
+                ],
+                "outbounds": [{"type": "direct", "tag": "origin"}],
+                "route": {
+                    "rules": [
+                        {
+                            "action": "route-options",
+                            "override_address": target[0],
+                            "override_port": target[1],
+                        }
+                    ],
+                    "final": "origin",
+                },
+            }
+            b, ports = self.config(("127.0.0.1", server_port))
+            node = b["gateway"]["singbox"]["outbounds"][1]
+            node.clear()
+            node.update(
+                type="vless",
+                tag="node-node-a",
+                server="127.0.0.1",
+                server_port=server_port,
+                uuid=user,
+                flow="xtls-rprx-vision",
+                network="tcp",
+                connect_timeout="5s",
+                tls={
+                    "enabled": True,
+                    "server_name": "upstream.test.invalid",
+                    "utls": {"enabled": True, "fingerprint": "firefox"},
+                    "reality": {
+                        "enabled": True,
+                        "public_key": pair["PublicKey"],
+                        "short_id": "abcdef12",
+                    },
+                },
+            )
+            with running(server, BINARY), self.gateway(b):
+                for protocol in ("http", "socks5"):
+                    self.assertEqual(self.attempt(ports, protocol).reason, "ok")
+            self.assertEqual(seen["requests"], 2)
+            node["tls"]["reality"]["short_id"] = "deadbeef"
+            with running(server, BINARY), self.gateway(b):
+                self.assertNotEqual(self.attempt(ports).reason, "ok")
+            self.assertEqual(seen["requests"], 2)
+
     @classmethod
     def setUpClass(cls):
         cls.directory = tempfile.TemporaryDirectory()

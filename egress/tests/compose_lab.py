@@ -147,7 +147,7 @@ def run_compose():
                 count += 1
                 network["mac_address"] = f"02:00:00:01:00:{count:02x}"
         common = {
-            "image": "sui-egress-test:2026.11.10",
+            "image": "sui-egress-test:2026.11.12",
             "user": f"{os.getuid()}:{os.getgid()}",
             "cap_drop": ["ALL"],
             "security_opt": ["no-new-privileges:true"],

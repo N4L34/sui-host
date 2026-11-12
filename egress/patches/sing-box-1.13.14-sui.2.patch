@@ -143,3 +143,23 @@
 +	}
 +	return conn, nil
 +}
+--- a/protocol/vless/outbound.go
++++ b/protocol/vless/outbound.go
+@@ -3,6 +3,7 @@
+ import (
+ 	"context"
+ 	"net"
++	"time"
+ 
+ 	"github.com/sagernet/sing-box/adapter"
+ 	"github.com/sagernet/sing-box/adapter/outbound"
+@@ -143,6 +144,9 @@
+ type vlessDialer Outbound
+ 
+ func (h *vlessDialer) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
++	// Sui: bound TCP and REALITY establishment; active streams keep no deadline.
++	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
++	defer cancel()
+ 	ctx, metadata := adapter.ExtendContext(ctx)
+ 	metadata.Outbound = h.Tag()
+ 	metadata.Destination = destination

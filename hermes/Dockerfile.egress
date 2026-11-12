@@ -1,0 +1,8 @@
+FROM nousresearch/hermes-agent:v0.22.5
+USER root
+# Match the existing data owner at build time so the original bootstrap can
+# run without root, SETUID/CHOWN capabilities or changes to the host volume.
+RUN groupmod -o -g 1000 hermes \
+    && usermod -u 1000 -g 1000 hermes \
+    && install -d -o 1000 -g 1000 /run/s6/container_environment
+USER 1000:1000

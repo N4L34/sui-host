@@ -72,7 +72,7 @@ class Server(socketserver.ThreadingTCPServer):
 
 
 @contextlib.contextmanager
-def origin(tls, stream=False):
+def origin(tls, stream=False, status=200):
     state = {"requests": 0, "headers": []}
     finished = threading.Event()
 
@@ -91,7 +91,7 @@ def origin(tls, stream=False):
                         conn.sendall(b"data: fixture\n\n")
                 else:
                     conn.sendall(
-                        b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"
+                        f"HTTP/1.1 {status} Fixture\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok".encode()
                     )
 
     with Server(("127.0.0.1", 0), Handler) as server:

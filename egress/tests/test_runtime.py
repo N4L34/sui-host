@@ -142,6 +142,76 @@ def enforced_installation():
 
 
 class CompilerTests(unittest.TestCase):
+    def test_status_can_check_its_own_bound_readiness_address(self):
+        c = enforced_installation()
+        status = next(
+            i for i in c["enforcement"]["identities"] if i["role"] == "status"
+        )
+        self_check = {
+            "ip": c["monitoring"]["status"],
+            "protocol": "tcp",
+            "ports": [8080],
+        }
+        status["allow"].append(self_check)
+        status["inbound"].append(self_check)
+        compiler.compile_installation(c)
+
+    def test_gateway_can_check_each_pinned_upstream_without_external_dns(self):
+        c = enforced_installation()
+        gateway = next(
+            i for i in c["enforcement"]["identities"] if i["role"] == "gateway"
+        )
+        self_check = {
+            "ip": c["control"]["gateway"],
+            "protocol": "tcp",
+            "ports": [23000],
+        }
+        gateway["allow"].append(self_check)
+        gateway["inbound"].append(self_check)
+        compiler.compile_installation(c)
+
+    def test_reality_transport_is_authenticated_tcp_only_and_private(self):
+        from egress.bundles import validate_bundle, seal
+
+        c = installation()
+        c["upstreams"][0] = {
+            "id": "node-a",
+            "transport": "vless-reality",
+            "ip": "8.8.8.8",
+            "port": 443,
+            "server_name": "upstream.example.invalid",
+            "uuid": "12345678-1234-4234-8234-123456789abc",
+            "public_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            "short_id": "abcdef12",
+            "fingerprint": "firefox",
+            "flow": "xtls-rprx-vision",
+        }
+        bundle = compiler.compile_installation(c)
+        gateway = validate_bundle(bundle["gateway"], "gateway")
+        node = next(
+            o for o in gateway["singbox"]["outbounds"] if o["tag"] == "node-node-a"
+        )
+        self.assertEqual(node["type"], "vless")
+        self.assertEqual(node["network"], "tcp")
+        self.assertTrue(node["tls"]["reality"]["enabled"])
+        self.assertEqual(node["tls"]["utls"]["fingerprint"], "firefox")
+        for role in ("dns", "status", "compose"):
+            self.assertNotIn(c["upstreams"][0]["uuid"], json.dumps(bundle[role]))
+        for key, bad in [
+            ("uuid", "bad"),
+            ("public_key", "bad"),
+            ("short_id", "xyz"),
+            ("fingerprint", "unknown"),
+            ("flow", "unknown"),
+        ]:
+            invalid = copy.deepcopy(c)
+            invalid["upstreams"][0][key] = bad
+            with self.assertRaisesRegex(ValueError, "installation_invalid"):
+                compiler.compile_installation(invalid)
+        node["tls"]["reality"]["enabled"] = False
+        with self.assertRaisesRegex(ValueError, "runtime_bundle_invalid"):
+            validate_bundle(seal(gateway), "gateway")
+
     def test_compiles_closed_default_deny_and_resolved_ip_policy(self):
         bundle = compiler.compile_installation(installation())
         gateway = bundle["gateway"]["singbox"]

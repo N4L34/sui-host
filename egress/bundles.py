@@ -84,20 +84,20 @@ def validate_bundle(value, role):
                 raise ValueError()
         outbounds = {o["tag"]: o for o in native["outbounds"]}
         for outbound in native["outbounds"]:
-            if outbound["type"] not in ("http", "socks", "direct", "selector"):
+            if outbound["type"] not in ("http", "socks", "vless", "direct", "selector"):
                 raise ValueError()
             if outbound["type"] == "selector" and (
                 not outbound["outbounds"]
                 or any(
                     not t.startswith("node-")
-                    or outbounds[t]["type"] not in ("http", "socks")
+                    or outbounds[t]["type"] not in ("http", "socks", "vless")
                     for t in outbound["outbounds"]
                 )
             ):
                 raise ValueError()
             if (
                 role == "gateway"
-                and outbound["type"] in ("http", "socks")
+                and outbound["type"] in ("http", "socks", "vless")
                 and outbound.get("server") != "127.0.0.1"
                 and not outbound.get("tls", {}).get("enabled")
             ):
@@ -109,7 +109,17 @@ def validate_bundle(value, role):
                 or outbound.get("udp_over_tcp")
             ):
                 raise ValueError()
-            if outbound["type"] in ("http", "socks") and outbound.get("tls"):
+            if outbound["type"] == "vless" and (
+                outbound.get("network") != "tcp"
+                or outbound.get("flow") not in ("", "xtls-rprx-vision")
+                or outbound.get("transport")
+                or outbound.get("multiplex")
+                or outbound.get("packet_encoding")
+                or not outbound.get("tls", {}).get("reality", {}).get("enabled")
+                or not outbound.get("tls", {}).get("utls", {}).get("enabled")
+            ):
+                raise ValueError()
+            if outbound["type"] in ("http", "socks", "vless") and outbound.get("tls"):
                 tls = outbound["tls"]
                 if (
                     tls.get("enabled") is not True
