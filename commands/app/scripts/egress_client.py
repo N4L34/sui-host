@@ -1,6 +1,7 @@
 """Explicit optional gateway mode. Required never attempts a direct socket."""
 
 import ipaddress
+import re
 import socket
 import time
 
@@ -16,7 +17,12 @@ def endpoint(config):
     if not required(config):
         raise ValueError("egress_mode_invalid")
     try:
-        host = str(ipaddress.ip_address(config["SUI_EGRESS_HOST"]))
+        host = config["SUI_EGRESS_HOST"]
+        try:
+            host = str(ipaddress.ip_address(host))
+        except ValueError:
+            if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9.-]{0,252}", host):
+                raise ValueError("egress_endpoint_invalid")
         port = int(config.get("SUI_EGRESS_PORT", "1080"))
         if not 1 <= port <= 65535:
             raise ValueError()
@@ -78,11 +84,11 @@ def chrome_arguments(config):
     if ":" in host:
         host = "[" + host + "]"
     # HTTP proxy handles CONNECT; QUIC and browser resolver fallbacks are
-    # disabled. Host nft rules remain the actual bypass boundary.
+    # disabled. This mode configures the application; it is not host enforcement.
     return [
         f"--proxy-server=http://{host}:3128",
         "--proxy-bypass-list=<-loopback>",
         "--disable-quic",
         "--dns-over-https-mode=off",
-        "--host-resolver-rules=MAP * ~NOTFOUND",
+        f"--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE {host}",
     ]

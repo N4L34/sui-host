@@ -1,6 +1,4 @@
-*
+**
 !Dockerfile
-!*.py
-!patches/
-!patches/*.patch
-!patches/NOTICE.md
+!__init__.py
+!service.py

@@ -9,7 +9,7 @@ x-log: &jsonlog
 services:
   avtobot:
     build: .
-    image: avtobot:2026.10.28
+    image: avtobot:2026.11.13-egress
     pull_policy: missing
     user: "1000:1000"
     init: true
@@ -48,34 +48,6 @@ services:
       resources:
         limits:
           memory: 1536M
-
-  proxy:
-    image: avtobot:2026.10.28
-    pull_policy: missing
-    network_mode: "service:avtobot"
-    depends_on:
-      avtobot:
-        condition: service_started
-    user: "1000:1000"
-    init: true
-    read_only: true
-    tmpfs:
-      - /tmp
-    restart: unless-stopped
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    command: ["/usr/local/bin/xray", "run", "-c", "/secrets/xray.json"]
-    volumes:
-      - /home/sui/avtobot/bin/xray:/usr/local/bin/xray:ro
-      - /home/sui/avtobot/secrets/xray.json:/secrets/xray.json:ro
-    memswap_limit: 128M
-    logging: *jsonlog
-    deploy:
-      resources:
-        limits:
-          memory: 128M
 
 networks:
   monitoring:

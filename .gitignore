@@ -17,3 +17,6 @@ egress/compose.override.yml
 
 # Local proxy tool auto-generated CA material
 .gost/
+
+# Locally generated application proxy settings
+*/compose.override.yml

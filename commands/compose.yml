@@ -9,7 +9,7 @@ x-log: &jsonlog
 services:
   commands:
     build: .
-    image: commands:2026.10.28
+    image: commands:2026.11.13-egress
     pull_policy: missing
     user: "1000:1000"
     init: true
@@ -47,34 +47,6 @@ services:
       monitoring.service: commands
       monitoring.probe: http://commands:8080/health
       monitoring.name: Команды
-    deploy:
-      resources:
-        limits:
-          memory: 128M
-
-  proxy:
-    image: commands:2026.10.28
-    pull_policy: missing
-    network_mode: "service:commands"
-    depends_on:
-      commands:
-        condition: service_started
-    user: "1000:1000"
-    init: true
-    read_only: true
-    tmpfs:
-      - /tmp
-    restart: unless-stopped
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    command: ["/usr/local/bin/xray", "run", "-c", "/secrets/xray.json"]
-    volumes:
-      - /home/sui/avtobot/bin/xray:/usr/local/bin/xray:ro
-      - /home/sui/avtobot/secrets/xray.json:/secrets/xray.json:ro
-    memswap_limit: 128M
-    logging: *jsonlog
     deploy:
       resources:
         limits:

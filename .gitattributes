@@ -1,2 +1,0 @@
-# Unified-diff context prefixes preserve upstream whitespace, including tabs.
-egress/patches/*.patch -whitespace

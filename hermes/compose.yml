@@ -22,10 +22,6 @@ services:
       API_SERVER_ENABLED: "true"
       API_SERVER_HOST: 0.0.0.0
       API_SERVER_KEY: ${HERMES_API_SERVER_KEY:?Set HERMES_API_SERVER_KEY in hermes/.env}
-      HTTP_PROXY: ${HERMES_SOCKS_PROXY:?Set HERMES_SOCKS_PROXY in hermes/.env}
-      HTTPS_PROXY: ${HERMES_SOCKS_PROXY:?Set HERMES_SOCKS_PROXY in hermes/.env}
-      ALL_PROXY: ${HERMES_SOCKS_PROXY:?Set HERMES_SOCKS_PROXY in hermes/.env}
-      NO_PROXY: localhost,127.0.0.1,hermes
     volumes:
       - /home/sui/hermes/data:/opt/data
     networks:

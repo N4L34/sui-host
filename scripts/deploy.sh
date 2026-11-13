@@ -57,6 +57,7 @@ managed_excludes=(
   --exclude='secrets/'
   --exclude='.env'
   --exclude='runtime.env'
+  --exclude='compose.override.yml'
   --exclude='backups/'
   --exclude='deploy/rendered/'
   --exclude='runtime/'
