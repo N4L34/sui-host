@@ -19,11 +19,16 @@ services:
       TZ: Europe/Moscow
       HERMES_UID: "1000"
       HERMES_GID: "1000"
+      DOCKER_HOST: unix:///var/run/docker.sock
       API_SERVER_ENABLED: "true"
       API_SERVER_HOST: 0.0.0.0
       API_SERVER_KEY: ${HERMES_API_SERVER_KEY:?Set HERMES_API_SERVER_KEY in hermes/.env}
     volumes:
       - /home/sui/hermes/data:/opt/data
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+        bind: {create_host_path: false}
     networks:
       - monitoring
     logging: *jsonlog
